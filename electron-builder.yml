@@ -9,8 +9,8 @@
 #   - signed + notarized since 2026-10-08 (Developer ID Application cert in
 #     the login keychain; notary credentials in the LH_NOTARY keychain
 #     profile; the profile + team env vars are baked into desktop:dist).
-appId: com.learnharness.LearnHarness
-productName: LearnHarness
+appId: com.learnins.app
+productName: Learnins
 directories:
   output: dist
 # Icons (owner ruling, 2026-10-13) — per-platform sources in build/:
@@ -21,11 +21,8 @@ directories:
 #         hand-packed full-res build/icon.icns (pre-Tahoe keeps 16→1024).
 #         Requires actool ≥ 26: desktop:dist injects DEVELOPER_DIR locally;
 #         the release workflow's mac job runs setup-xcode.
-#   win   build/icon.ico  — generated (16→256) from the flat design by
-#         scripts/make-icons.mjs.
-#   linux build/icon.png  — 512×512, same script. Rounded squircle with
-#         baked transparency on both (owner ruling) — Windows/Linux don't
-#         mask, the shape ships in the artwork.
+#   win   build/learnins.ico — generated from app/icon.svg.
+#   linux build/learnins.png — 512×512, from the same source.
 files:
   # Only the shell goes into the asar. ORDER IS LOAD-BEARING (payload
   # wave, 2026-09-24): electron-builder's dependency collector packs the
@@ -99,6 +96,8 @@ extraResources:
     to: server
     filter:
       - "standalone/**/*"
+      # Local test artifacts may contain private data and never belong in a release.
+      - "!standalone/output{,/**/*}"
 mac:
   # The backend's --require runs before Next loads. Keep this resource
   # outside app.asar so early Node-mode loading needs no ASAR support.
@@ -125,7 +124,7 @@ mac:
   # Laid for the STT milestone (researcher-verified): the TCC mic prompt
   # reads this string; macOS asks regardless of Electron's own handlers.
   extendInfo:
-    NSMicrophoneUsageDescription: "LearnHarness uses the microphone only for speech-to-text input into your sessions."
+    NSMicrophoneUsageDescription: "Learnins uses the microphone only for speech-to-text input into your sessions."
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   # Signing + notarization (flipped 2026-10-08): identity auto-detects the
@@ -152,7 +151,7 @@ dmg:
       path: /Applications
 afterPack: scripts/after-pack.cjs
 win:
-  icon: build/icon.ico
+  icon: build/learnins.ico
   target:
     - target: nsis
       arch:
@@ -166,7 +165,7 @@ nsis:
   oneClick: true
   perMachine: false
 linux:
-  icon: build/icon.png
+  icon: build/learnins.png
   target:
     - target: AppImage
       arch:
@@ -188,7 +187,7 @@ publish:
   # would be a leak. desktop:dist passes no --publish flag, so builds never
   # upload; publishing happens at release time (GH_TOKEN + --publish).
   - provider: github
-    owner: amosblomqvist
-    repo: learnharness
+    owner: geinigegastcoding
+    repo: Learnins
     # All three CI jobs contribute assets; only the owner publishes it.
     releaseType: draft

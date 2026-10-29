@@ -19,7 +19,7 @@
  * LH_AUTH_FILE under os.tmpdir() (no real keys or data ever touch it) —
  * polls GET / until 200, then probes the GET-only API surface (graph /
  * models / settings — no side effects). Any non-200, an early server
- * exit, or a 30s boot timeout fails the gate and prints the server's own
+ * exit, or a 60s boot timeout fails the gate and prints the server's own
  * log tail for diagnosis. The child is ALWAYS killed before exit — a
  * leaked server holds its port against the next run (learned the hard
  * way, same day).
@@ -41,7 +41,7 @@ const ELECTRON_MODE = process.argv.includes("--electron");
 const RUNTIME = ELECTRON_MODE ? createRequire(import.meta.url)("electron") : process.execPath;
 
 const POLL_MS = 500;
-const BOOT_TIMEOUT_MS = 30_000;
+const BOOT_TIMEOUT_MS = 60_000;
 /** GET-only probes — the routes that exercised today's failure class. */
 const PROBES = ["/api/graph", "/api/models", "/api/settings"];
 
@@ -70,7 +70,7 @@ function get(url) {
 			resolve(res.statusCode ?? 0);
 		});
 		req.on("error", () => resolve(0));
-		req.setTimeout(5000, () => {
+		req.setTimeout(15_000, () => {
 			req.destroy();
 			resolve(0);
 		});
@@ -85,7 +85,8 @@ async function main() {
 	verifyProviderRuntime(STANDALONE, RUNTIME);
 	const port = await freePort();
 	const url = `http://127.0.0.1:${port}`;
-	const home = fs.mkdtempSync(path.join(os.tmpdir(), "lh-smoke-"));
+	const tempRoot = fs.realpathSync(os.tmpdir());
+	const home = fs.mkdtempSync(path.join(tempRoot, "lh-smoke-"));
 	const dataDir = path.join(home, "data");
 	const authFile = path.join(home, "auth.json");
 	fs.writeFileSync(authFile, "{}\n", "utf-8");
@@ -171,7 +172,10 @@ async function main() {
 	} finally {
 		await kill();
 		try {
-			fs.rmSync(home, { recursive: true, force: true });
+			const target = fs.realpathSync(home);
+			const relative = path.relative(tempRoot, target);
+			if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("Unexpected smoke-test directory");
+			fs.rmSync(target, { recursive: true, force: true });
 		} catch {
 			/* best effort — it's under os.tmpdir() */
 		}

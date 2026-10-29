@@ -67,7 +67,7 @@ export function derivedPalette(background: string): Record<string, string> {
 		"--accent": accent,
 		"--border": border,
 		"--input": border,
-		"--primary-foreground": background,
+		"--primary-foreground": "#ffffff",
 	};
 }
 
@@ -86,7 +86,7 @@ export function appearanceVars(a: ReturnType<typeof resolveAppearance>): Record<
 	// Session names: CMU Serif by default; the toggle swaps the title font
 	// to the prose family — covers chat.tsx + new-session.tsx titles with
 	// zero component edits (they use the .font-title utility).
-	if (!a.sessionNameSerif) vars["--font-title"] = "var(--font-prose)";
+	vars["--font-title"] = a.sessionNameSerif ? '"lh-cmu", serif' : "var(--font-prose)";
 	// Markdown rendering: heading weight + the emphasis inks (the vars
 	// were built "ready for the settings UI").
 	vars["--lh-heading-weight"] = String(a.mdRendering.headingWeight);

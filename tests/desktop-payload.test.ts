@@ -23,6 +23,7 @@ function withPayload(test: (fixture: {
 	};
 	try {
 		write(path.join("scripts", "build-server.mjs"), source);
+		write(path.join("electron", "provider-runtime.mjs"), "// ESM bridge fixture");
 		write(path.join(STANDALONE, "server.js"));
 		write(path.join(".next", "static", "runtime.js"));
 		write(path.join("public", "asset.txt"));
@@ -37,9 +38,9 @@ function withPayload(test: (fixture: {
 }
 
 describe("desktop standalone payload", () => {
-	it("removes only traced installers/dev Electron, preserving runtime dist/ and native binaries", () => {
+	it("removes only traced installers, test output and dev Electron, preserving runtime dependencies", () => {
 		withPayload(({ root, write, run }) => {
-			for (const extra of [path.join("dist", "old.app", "nested.dmg"), path.join("node_modules", "electron", "dist", "electron.exe")]) {
+			for (const extra of [path.join("dist", "old.app", "nested.dmg"), path.join("output", "private-test-data.json"), path.join("node_modules", "electron", "dist", "electron.exe")]) {
 				// BOTH copies exist: curation must not touch the real repo's build/runtime.
 				write(extra);
 				write(path.join(STANDALONE, extra));
@@ -55,12 +56,15 @@ describe("desktop standalone payload", () => {
 			const result = run();
 			assert.equal(result.status, 0, String(result.stderr));
 			assert.equal(fs.existsSync(path.join(root, STANDALONE, "dist")), false);
+			assert.equal(fs.existsSync(path.join(root, STANDALONE, "output")), false);
 			assert.equal(fs.existsSync(path.join(root, STANDALONE, "node_modules", "electron")), false);
 			assert.ok(fs.existsSync(path.join(root, "dist", "old.app", "nested.dmg")));
+			assert.ok(fs.existsSync(path.join(root, "output", "private-test-data.json")));
 			assert.ok(fs.existsSync(path.join(root, "node_modules", "electron", "dist", "electron.exe")));
 			for (const file of runtime) assert.ok(fs.existsSync(path.join(root, STANDALONE, file)), file);
 			assert.ok(fs.existsSync(path.join(root, STANDALONE, ".next", "static", "runtime.js")));
 			assert.ok(fs.existsSync(path.join(root, STANDALONE, "public", "asset.txt")));
+			assert.ok(fs.existsSync(path.join(root, STANDALONE, "electron", "provider-runtime.mjs")));
 		});
 	});
 

@@ -1,81 +1,53 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/lh_banner_dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/lh_banner_light.png">
-    <img src="docs/assets/lh_banner_light.png" alt="LearnHarness" width="640">
-  </picture>
-</p>
+# Learnins
 
-<p align="center"><strong>An agent harness for learning.</strong></p>
+Learnins is a local-first learning workspace built on [LearnHarness](https://github.com/amosblomqvist/learnharness). It keeps its measure → plan → teach → practice loop and knowledge graph, and adds a study library, flashcards, exam planning and coding practice.
 
-<p align="center">
-  <a href="https://learnharness.ai">Download</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="docs/development.md">Documentation</a> ·
-  <a href="https://github.com/amosblomqvist/learnharness/issues">Issues</a> ·
-  <a href="https://discord.gg/5tCHHQEB2e">Discord</a>
-</p>
+## Start on Windows
 
-LearnHarness uses AI agents to plan and teach lessons from your current understanding to your goal. It builds a detailed picture of what you understand and how you reason. That picture is updated as you learn.
+Double-click **Start-Learnins.cmd**, or open a terminal in this folder and run:
 
-Instead of just giving you an explanation, it uses your answers and thinking to decide what you need next. Teaching builds understanding one reasoning step at a time. Practice makes it usable. A persistent knowledge graph carries it across sessions.
-
-![LearnHarness teaching session](docs/assets/teaching-session.png)
-
-## How it works
-
-1. **Measure.** Before teaching, the agent finds where your understanding ends on each part the lesson depends on. Your answers, confidence, and thinking show it where to start.
-2. **Plan.** It works out a dependency map from that starting point to your goal. You can see the plan, and the lesson adapts when your understanding turns out different.
-3. **Teach.** Each step builds on something you already understand. You predict, get an explanation, and check your understanding. Confusions are repaired before anything is built on them. The aim is for the goal to feel obviously true, not merely familiar.
-4. **Practice.** Separate sessions pose varied problems that require the right knowledge to come to mind without being named first. Problems and hints adapt to your reasoning.
-
-**Think out loud.** The thinking fields let you explain your reasoning, uncertainties, and reactions in your own words. This is how the agent gets a detailed picture rather than just a record of right and wrong answers. You can type or use dictation.
-
-The agent can also research questions in the background, create visual explanations, and build interactive demonstrations.
-
-## Knowledge that carries forward
-
-What you are taught accumulates as propositions and reasoning chains: individual claims and the premises that lead to them. The graph shows this structure, with links back to the source sessions. You can also import notes.
-
-Future teaching sessions can read the graph instead of starting from scratch. Practice sessions can draw their material from it. It stores the ideas and their connections, not ratings of your ability.
-
-![LearnHarness knowledge graph](docs/assets/knowledge-graph.png)
-
-## Download and get started
-
-**[Download from learnharness.ai](https://learnharness.ai)** · [GitHub Releases](https://github.com/amosblomqvist/learnharness/releases)
-
-- **macOS (Apple Silicon):** signed and notarized DMG. Drag the app to Applications.
-- **Windows (x64):** run the installer. It is currently unsigned; Windows may show an “unknown publisher” or SmartScreen warning.
-- **Linux (x64):** make the AppImage executable and open it, or install the Debian/Ubuntu `.deb`.
-
-Add your provider API key and choose your models, then start a session with what you want to understand. LearnHarness supports 30+ provider options, including OpenAI, Anthropic, Google, DeepSeek, and OpenRouter. Optional dictation and web search use separate service keys.
-
-All three platforms support in-app updates.
-
-**Dictation:** Create a [Deepgram API key](https://console.deepgram.com/) with the **Member role or higher** ([required for token minting](https://developers.deepgram.com/reference/auth/tokens/grant)) and add it under **Settings → Providers → Dictation**. Choose the language below the key; **Multilingual** supports automatic recognition and mixed-language speech. A `403 Insufficient permissions` error during token minting can indicate an insufficient key role.
-
-## Your keys, your data
-
-- **Your keys and models.** No LearnHarness subscription or markup. You pay your providers for usage; a live cost meter shows model costs.
-- **Local storage.** Your chats, graph, settings, and API keys live on your machine. Learning records are plain files you can inspect.
-- **External services.** Models run through your configured providers. Model requests send the context needed for the task; web research and dictation also contact external services. Local storage does not mean offline processing.
-- **Inspectable behavior.** System prompts are visible and editable. The app is open source under the AGPL-3.0 license.
-
-## Development and support
-
-```bash
-npm install
-npm run dev        # http://localhost:3000
-npm test           # deterministic, no LLM, no network
+```powershell
+npm run desktop:dev
 ```
 
-See the [development guide](docs/development.md), [architecture](docs/architecture.md), and [desktop release guide](docs/desktop-release.md).
+The launcher starts a local development server, waits for it to become ready, and opens the Electron app. Keep its terminal open while using the app; closing the app stops the server. Node.js 24 and the project's dependencies are required. A fresh `npm ci` may download a large dependency set; check its size and available storage before reinstalling. The source development server uses this repository's `data/` and `auth.json`; the Electron window also has a separate `Learnins-dev` directory for its own window data.
 
-Questions, bug reports, and feature requests: [GitHub Issues](https://github.com/amosblomqvist/learnharness/issues).
+For a browser-only development session, run `npm run dev` and open the local address printed in the terminal. It uses the same repository `data/` and `auth.json` as the desktop development launcher. The desktop app also provides native subscription connection and window features.
 
-## License
+## Start learning
 
-[AGPL-3.0](LICENSE)
+A short tutorial opens on the first launch. You can skip it or open it again with **Tutorial** on Home.
 
-The app is free and open forever. If we ever charge for anything, it will be for convenience — managed keys, hosting — never for features you can run locally.
+1. Select **Connect a provider** on Home. Choose a supported subscription connection or an API-key provider, then pick the strong, cheap and vision model slots.
+2. Start a teaching or practice session with a topic. The existing adaptive lesson and knowledge graph carry your learning forward.
+3. Use **Materials** to add files, **Flashcards** to review, **Planner** to schedule revision, and **Coding** to run and discuss code with the tutor.
+
+The provider picker stores API keys after a format check; a successful save is not a live verification of the provider account. **Local Codex** uses an already installed Codex CLI signed in with a ChatGPT account and can use Learnins' lesson tools. Its own shell, browser and MCP tools are disabled. Connecting is optional, and background use can be switched off. Model usage is subject to the provider's terms and limits. General ACP connections to other agents are not yet included.
+
+## Study tools
+
+- **Materials:** PDF, DOCX, PPTX, images, text, Markdown, CSV/TSV, code and exported Teams VTT/SRT transcripts. Originals and extracted text are kept locally. Text-only extraction cannot interpret diagrams; the tutor can use its existing PDF or image tools on the saved original. Live Microsoft Teams account sync is not included.
+- **Flashcards:** create decks and cards, paste tab-separated word pairs, or add propositions from the knowledge graph. Review ratings schedule the next encounter. Cards and decks can be edited or removed.
+- **Planner:** add exam dates, topics, available days, a daily time window and study-block length. Overlapping Learnins blocks move later within that window when possible; existing Google Calendar events are not checked. Connect Google Calendar to add a whole plan to the primary calendar, export an `.ics` file, or open individual events in Google Calendar for review. Direct connection uses an installed Google Workspace CLI and its OAuth client, with a separate Learnins sign-in; the existing CLI profile is not changed. Sign in through the planner and grant access to events on calendars you own. Additions are one-time copies, not continuous sync; changing or deleting a Learnins block does not change an event already added to Google Calendar.
+- **Coding:** run JavaScript, TypeScript and Python in an isolated browser worker, add assertions, and send the code and output to a teaching draft. Open the same workspace from a lesson to add the result to your reply; if a question is waiting, copy it into your answer instead. Drafts are shared across sessions. Python's bundled Pyodide runtime is approximately 14 MB. External network and host-file access are disabled in the runner; the Python runtime is loaded from the local app.
+- **Research:** automatic free web search uses DuckDuckGo, with Wikipedia as a narrower fallback when web search is unavailable. Optional Tavily and Brave keys remain supported.
+
+## Data and privacy
+
+When running from source, including through `Start-Learnins.cmd`, study data and imported originals live in `data/`, and provider keys and subscription credentials live beside `auth.json`; these are ignored by Git. The desktop shell also uses a separate `Learnins-dev` directory for its own window data. A packaged desktop app keeps its learning data and credentials in its per-user application data directory. Back up the relevant data and credential files if they matter to you.
+
+Provider keys and subscription credentials are stored locally in plaintext files by the inherited LearnHarness connection system. The Google Workspace CLI keeps the separate calendar sign-in under `data/google-calendar` (or the packaged app's data directory); its file-based encryption key is also stored locally. Local Codex remains signed in through its own CLI. Operating-system file permissions matter, especially on shared machines. Model requests, web searches and calendar actions contact the selected external services. General ACP integration and live Microsoft Teams sync are not implemented.
+
+Automatic updates are disabled until a Learnins-specific update feed is explicitly configured; the fork will not silently install an upstream LearnHarness release.
+
+## Development
+
+```powershell
+npm run typecheck
+npm run lint
+npm test
+```
+
+The test runner works on Windows, macOS and Linux. Tests that require POSIX file modes are skipped on Windows, where ACLs determine access instead.
+
+Learnins is a fork of LearnHarness by Amos Blomqvist and remains available under the [AGPL-3.0 license](LICENSE).

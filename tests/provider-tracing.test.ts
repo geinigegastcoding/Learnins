@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 // Use Next's actual bundled matcher, not a different glob implementation.
 const picomatch = require("next/dist/compiled/picomatch");
 const { makeIgnoreFn } = require("next/dist/build/collect-build-traces");
-const patterns = nextConfig.outputFileTracingExcludes!["*"];
+const patterns = nextConfig.outputFileTracingExcludes!["*"]!;
 
 describe("standalone JavaScript tracing exclusions and native workaround policy", () => {
 	for (const windows of [false, true]) {
@@ -29,6 +29,10 @@ describe("standalone JavaScript tracing exclusions and native workaround policy"
 				assert.equal(picomatch("data/**/*", { contains: true, dot: true, windows })(file("node_modules/gcp-metadata/build/src/index.js")), true, "old pattern must reproduce the bug");
 			}
 		});
+		it(`excludes generated Windows packages without excluding ordinary output paths (${windows ? "Windows" : "POSIX"})`, () => {
+			assert.equal(ignored(file("output/learnins-win-testable-20261029/win-unpacked/Learnins.exe")), true);
+			assert.equal(ignored(file("node_modules/example/output/runtime.js")), false);
+		});
 	}
 	it("uses the installed Next JavaScript early-ignore function on the host platform", () => {
 		const root = process.cwd();
@@ -37,7 +41,7 @@ describe("standalone JavaScript tracing exclusions and native workaround policy"
 		assert.equal(ignore(`${root}/node_modules/gcp-metadata/build/src/index.js`), false);
 	});
 	it("preserves all secret exclusions exactly", () => {
-		assert.deepEqual(patterns, ["**/data/**/*", "auth.json", "chatgpt-credentials.json*", "github-copilot-credentials.json*", "xai-credentials.json*", ".env*"]);
+		assert.deepEqual(patterns.filter((pattern) => pattern !== "output/learnins-win-*/**/*"), ["**/data/**/*", "auth.json", "chatgpt-credentials.json*", "github-copilot-credentials.json*", "xai-credentials.json*", ".env*"]);
 	});
 	it("retains exactly the narrow native-Turbopack closure workaround and existing runtime includes", () => {
 		assert.deepEqual(nextConfig.outputFileTracingIncludes!["*"], [

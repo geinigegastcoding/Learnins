@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { BookOpenIcon, Code2Icon, GraduationCapIcon } from "lucide-react";
 import { Conversation, ConversationContent, ConversationEmptyState } from "@/components/ai-elements/conversation";
 import { Composer } from "@/components/composer";
 import { DictationBar, joinDictation, useDictation } from "@/components/dictation";
@@ -156,7 +157,7 @@ export function DraftShell({
 		 * (the only pointer-events-auto spot), the empty state carrying the
 		 * orientation. The chain picker then owns the column top exactly
 		 * like the graph view's — no stacked bars. */
-		<div className="relative flex h-dvh">
+		<div data-native-tab className="relative flex h-dvh">
 			{/* Window-drag strip — deliberately FIRST in the DOM (the mask
 			    law: no-drag subtraction resolves by DOM order, so every
 			    carved control later in the tree subtracts correctly). */}
@@ -169,14 +170,20 @@ export function DraftShell({
 					<div className="pointer-events-none sticky bottom-0 mt-auto w-full">
 						<Conversation className="h-full min-w-0 flex-1" initial="instant">
 							<ConversationContent className="min-h-full gap-0 p-0">
-								<ConversationEmptyState
-									title={mode === "practice" ? "New practice session" : "New session"}
-									description={
-										mode === "practice"
-											? "Pick nodes from your knowledge graph, describe what you want to practice, or bring your own problem."
-											: "The teacher will open by probing what you already know."
-									}
-								/>
+								<ConversationEmptyState>
+									<div className="rounded-2xl border border-border bg-card p-4 text-blue-300"><BookOpenIcon className="size-6" /></div>
+									<div className="space-y-2"><h3 className="text-lg font-semibold">{mode === "practice" ? "New practice session" : "New session"}</h3><p className="max-w-md text-sm leading-6 text-muted-foreground">{mode === "practice" ? "Pick nodes from your knowledge graph, describe what you want to practice, or bring your own problem." : "The teacher will open by probing what you already know."}</p></div>
+									{!text.trim() && <div className="pointer-events-auto mt-3 flex max-w-xl flex-wrap justify-center gap-2" aria-label="Example starting points">
+										{(mode === "practice" ? [
+											{ label: "Practise a concept", text: "Help me practise a concept I have been learning.", icon: BookOpenIcon },
+											{ label: "Work through a problem", text: "Help me work through a problem step by step.", icon: Code2Icon },
+										] : [
+											{ label: "Understand a concept", text: "Help me understand how recursion works.", icon: BookOpenIcon },
+											{ label: "Prepare for an exam", text: "Help me prepare for an upcoming biology exam.", icon: GraduationCapIcon },
+											{ label: "Learn to code", text: "Help me learn to code with a small practical exercise.", icon: Code2Icon },
+										]).map(({ label, text: example, icon: Icon }) => <button key={label} type="button" onClick={() => { onChange(example); composerInputRef.current?.focus(); }} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-accent"><Icon className="size-4 text-muted-foreground" />{label}</button>)}
+									</div>}
+								</ConversationEmptyState>
 							</ConversationContent>
 						</Conversation>
 						<div className="h-24 bg-gradient-to-t from-background via-background/85 to-transparent" />
@@ -241,6 +248,13 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 		textRef.current = v;
 		setText(v);
 	};
+	useEffect(() => {
+		const starter = sessionStorage.getItem("learnins:starter");
+		if (!starter) return;
+		sessionStorage.removeItem("learnins:starter");
+		textRef.current = starter;
+		setText(starter);
+	}, []);
 	const [busy, setBusy] = useState(false);
 	const startingRef = useRef(false);
 	const starterRef = useRef(new SessionStarter());

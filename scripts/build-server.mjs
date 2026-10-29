@@ -17,7 +17,13 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const STANDALONE = path.join(ROOT, ".next", "standalone");
 
 const copyTree = (from, to) => {
-	fs.cpSync(from, to, { recursive: true });
+	fs.mkdirSync(to, { recursive: true });
+	for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+		const source = path.join(from, entry.name), destination = path.join(to, entry.name);
+		if (entry.isDirectory()) copyTree(source, destination);
+		else if (entry.isFile()) fs.copyFileSync(source, destination);
+		else throw new Error(`[build-server] unsupported asset type: ${source}`);
+	}
 };
 
 const exists = (p) => fs.existsSync(p);
@@ -38,7 +44,6 @@ copyTree(staticFrom, staticTo);
 if (exists(path.join(ROOT, "public"))) {
 	copyTree(path.join(ROOT, "public"), path.join(STANDALONE, "public"));
 }
-
 // 2) Safety: the repo's real data/ must NEVER ride along in the bundle.
 const leakedData = path.join(STANDALONE, "data");
 if (exists(leakedData)) {
@@ -61,17 +66,26 @@ for (const secret of ["auth.json", ...subscriptionSecrets, ".env", ".env.local"]
 	}
 }
 
+// The Electron connection owner resolves the server's Pi installation via
+// this ESM module; the tracer cannot see the dynamic main-process import.
+fs.mkdirSync(path.join(STANDALONE, "electron"), { recursive: true });
+fs.copyFileSync(path.join(ROOT, "electron", "provider-runtime.mjs"), path.join(STANDALONE, "electron", "provider-runtime.mjs"));
+
 // 2c) Payload curation (2026-10-11): the trace sweep can copy repo-root
-// dist/ (previous installers, recursively) and the development Electron
-// runtime (the demo helper's dev-only require). Neither belongs in the
+// dist/ (previous installers), output/ (local test artifacts) and the
+// development Electron runtime (the demo helper's dev-only require). None belongs in the
 // server: packaged helpers use process.execPath, the app's own binary.
 // Remove ONLY these standalone-root paths AFTER tracing — excluding a
 // generic dist/** earlier broke pi-ai / pi-agent-core's runtime dist/.
 // Never touch ROOT/dist or ROOT/node_modules/electron (the running app
 // and the build runtime); native canvas/resvg packages stay untouched.
-for (const extra of ["dist", path.join("node_modules", "electron")]) {
+for (const extra of ["dist", "output", path.join("node_modules", "electron")]) {
 	const target = path.join(STANDALONE, extra);
 	if (exists(target)) {
+		const resolvedRoot = fs.realpathSync(STANDALONE);
+		const resolvedTarget = fs.realpathSync(target);
+		const relative = path.relative(resolvedRoot, resolvedTarget);
+		if (!relative || relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) throw new Error(`[build-server] refusing to remove an outside path: ${extra}`);
 		fs.rmSync(target, { recursive: true, force: true });
 		console.log(`[build-server] removed build-only payload: ${extra}`);
 	}

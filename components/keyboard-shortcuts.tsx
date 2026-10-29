@@ -64,6 +64,9 @@ export function KeyboardShortcuts() {
 			// the default action runs after dispatch, so suppressing it here
 			// works from any focus.
 			if (e.key === "Tab") {
+				// New workspace surfaces and setup dialogs use normal browser
+				// focus navigation, including links, buttons and form controls.
+				if (document.querySelector("[data-native-tab]")) return;
 				e.preventDefault();
 				if (e.shiftKey) window.dispatchEvent(new CustomEvent("lh:kbd-cycle-thinking"));
 				// Plain Tab cycles the active surface's text fields (owner,
@@ -125,7 +128,7 @@ export function KeyboardShortcuts() {
 					handlersRef.current.openSettings();
 					break;
 				case "jump-graph":
-					handlersRef.current.router.push("/");
+					handlersRef.current.router.push("/graph");
 					break;
 				case "cheat-sheet":
 					handlersRef.current.setCheatOpen(true);

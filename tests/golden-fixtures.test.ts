@@ -32,7 +32,16 @@ const GOLDEN = path.join(HERE, "fixtures", "golden-data");
 
 // ── the seam, BEFORE any config-loading import ──────────────────────────────
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "lh-golden-"));
-fs.cpSync(GOLDEN, TMP, { recursive: true });
+function copyFixture(source: string, destination: string) {
+	fs.mkdirSync(destination, { recursive: true });
+	for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+		const from = path.join(source, entry.name), to = path.join(destination, entry.name);
+		if (entry.isDirectory()) copyFixture(from, to);
+		else if (entry.isFile()) fs.copyFileSync(from, to);
+		else throw new Error(`Unexpected fixture type: ${from}`);
+	}
+}
+copyFixture(GOLDEN, TMP);
 process.env.LH_DATA_DIR = TMP;
 
 const { chatStore } = await import("../src/store/chats.ts");
