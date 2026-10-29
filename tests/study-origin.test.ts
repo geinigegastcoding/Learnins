@@ -55,4 +55,16 @@ describe("study request origins", () => {
 		assert.equal(converted.status, 200);
 		assert.match((await converted.json()).code, /const x\s*=\s*1/);
 	});
+
+	it("converts TypeScript features that need transformation and reports syntax errors", async () => {
+		const headers = { origin: "http://127.0.0.1:3210", "content-type": "application/json" };
+		const converted = await transpile.POST(request("/api/study/transpile", "POST", JSON.stringify({ code: "enum Grade { Pass = 3 }; globalThis.result = Grade.Pass" }), headers));
+		assert.equal(converted.status, 200);
+		const { code } = await converted.json();
+		const context: { result?: number } = {};
+		new Function("globalThis", code)(context);
+		assert.equal(context.result, 3);
+		const invalid = await transpile.POST(request("/api/study/transpile", "POST", JSON.stringify({ code: "const value: = ;" }), headers));
+		assert.equal(invalid.status, 400);
+	});
 });
