@@ -4,6 +4,14 @@ import type { NextConfig } from "next";
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string; homepage: string };
 
 const nextConfig: NextConfig = {
+	// The development launcher is also the local app; do not cover its controls.
+	devIndicators: false,
+	// Allow a shared local dependency cache in development without copying it.
+	...(process.env.LH_TURBOPACK_ROOT ? { turbopack: { root: process.env.LH_TURBOPACK_ROOT } } : {}),
+	// The isolated, opaque-origin code runner may fetch only its local Python runtime.
+	async headers() {
+		return [{ source: "/python-runtime/:path*", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] }];
+	},
 	// Public build metadata only; no new runtime Electron version API.
 	env: { LH_VERSION: pkg.version, LH_HOMEPAGE: pkg.homepage },
 	// Desktop target (Electron wrapper, 2026-09-17): standalone output = a
@@ -47,6 +55,8 @@ const nextConfig: NextConfig = {
 	outputFileTracingExcludes: {
 		"*": [
 			"**/data/**/*",
+			// Avoid retracing locally generated Windows test builds on subsequent builds.
+			"output/learnins-win-*/**/*",
 			"auth.json",
 			"chatgpt-credentials.json*",
 			"github-copilot-credentials.json*",

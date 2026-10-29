@@ -23,6 +23,7 @@ import { AnsweredCard } from "@/components/answered-card";
 import { artifactRenderers } from "@/components/artifacts";
 import { SubagentSteerCard } from "@/components/artifacts/steer-card";
 import { Composer } from "@/components/composer";
+import { CodingWorkspace } from "@/components/study-coding";
 import { useEnterSubmits } from "@/components/enter-submits";
 import { blurAfterPointerClick } from "@/components/focus-hygiene";
 import { dockStateKey } from "@/components/dock-state-key";
@@ -49,7 +50,7 @@ import { PlanBlock, PlanPopup, latestTree } from "@/components/plan-block";
 import { PlanMarginalia, planExists } from "@/components/plan-window";
 import { MermaidOverlay, SessionMermaidContext } from "@/components/session-overlay";
 import { AbortTurnDialog, type AbortMode } from "@/components/abort-turn-dialog";
-import { ArrowRightIcon, DumbbellIcon, WaypointsIcon } from "lucide-react";
+import { ArrowRightIcon, Code2Icon, DumbbellIcon, WaypointsIcon, XIcon } from "lucide-react";
 import type { PlanBlockData } from "@/src/core";
 import { QuestionDock } from "@/components/question-dock";
 import { SessionFind } from "@/components/session-find";
@@ -277,6 +278,7 @@ export function Chat({
 	// must not churn), and the sidebar patch is instant via the window event —
 	// its 2.5s poll is only a backstop.
 	const [titleText, setTitleText] = useState(title);
+	const [codeOpen, setCodeOpen] = useState(false);
 	const [renaming, setRenaming] = useState(false);
 	const [titleDraft, setTitleDraft] = useState("");
 	const titleInputRef = useRef<HTMLInputElement | null>(null);
@@ -1311,7 +1313,7 @@ export function Chat({
 								spellCheck={false}
 								aria-label="Session title"
 								title="Rename this session"
-								className="lh-no-drag min-w-[8ch] max-w-[70%] shrink-0 bg-transparent font-title text-3xl tracking-tight caret-current outline-none [field-sizing:content]"
+								className="lh-no-drag min-w-[8ch] max-w-[70%] shrink-0 bg-transparent font-ui text-lg font-semibold tracking-tight caret-current outline-none [field-sizing:content]"
 							/>
 							{/* flex-1 spacer during rename too, so the chips stay at
 							    the right edge; clicks here commit via the header
@@ -1332,7 +1334,7 @@ export function Chat({
 								setTitleDraft(titleText);
 								setRenaming(true);
 							}}
-							className="lh-no-drag -mx-1.5 min-w-4 shrink cursor-text truncate rounded-md px-1.5 text-left font-title text-3xl tracking-tight transition-colors hover:bg-accent"
+							className="lh-no-drag -mx-1.5 min-w-4 shrink cursor-text truncate rounded-md px-1.5 text-left font-ui text-lg font-semibold tracking-tight transition-colors hover:bg-accent"
 						>
 							{titleText}
 							</button>
@@ -1342,6 +1344,9 @@ export function Chat({
 							<div className="min-w-4 flex-1" aria-hidden="true" />
 					</>
 					)}
+					<Hint label="Open coding workspace" side="bottom">
+						<button type="button" data-testid="open-session-code" aria-label="Open coding workspace" onClick={() => setCodeOpen(true)} className="lh-no-drag inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:size-9"><Code2Icon className="size-4" aria-hidden /></button>
+					</Hint>
 					{/* The plan chip (owner, plan-placement round): session-level
 					    structure beside the phase chip — access to the full-DAG popup
 					    at every width; the marginalia is the wide-screen glance view. */}
@@ -1790,8 +1795,30 @@ export function Chat({
 				// the learner sends it themselves.
 			}}
 		/>
+		{codeOpen && <SessionCodeDialog
+			onClose={() => setCodeOpen(false)}
+			questionPending={!!pending || !!activeProblem}
+			onAttach={(message) => {
+				applyText([textRef.current, message].filter(Boolean).join("\n\n"));
+				setCodeOpen(false);
+				requestAnimationFrame(() => composerInputRef.current?.focus());
+			}}
+		/>}
 		</ChatActionsContext.Provider>
 	);
+}
+
+/** The same persistent runner is available without leaving a lesson. */
+function SessionCodeDialog({ onClose, onAttach, questionPending }: { onClose: () => void; onAttach: (text: string) => void; questionPending: boolean }) {
+	const dialog = useRef<HTMLDialogElement>(null);
+	useEffect(() => { dialog.current?.showModal(); }, []);
+	return <dialog ref={dialog} data-native-tab aria-labelledby="session-code-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onKeyDown={(event) => { if (event.key === "Escape") event.stopPropagation(); }} className="m-auto flex max-h-[90dvh] w-[min(96vw,1100px)] max-w-none flex-col overflow-hidden rounded-xl border border-border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/70">
+		<div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+			<div><h2 id="session-code-title" className="font-semibold">Coding workspace</h2><p className="mt-1 text-sm text-muted-foreground">Try an example from this lesson. Your code drafts are shared across sessions.</p></div>
+			<button type="button" onClick={onClose} aria-label="Close coding workspace" className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground sm:size-9"><XIcon className="size-4" /></button>
+		</div>
+		<div className="min-h-0 overflow-y-auto p-5"><CodingWorkspace onAttachToSession={onAttach} questionPending={questionPending} /></div>
+	</dialog>;
 }
 
 /**

@@ -54,14 +54,15 @@ import { ChatGPTBackgroundAccess } from "@/components/settings/chatgpt-connectio
 import { NativeSubscriptionBackgroundAccess, SubscriptionConnections } from "@/components/settings/subscription-connections";
 import { defaultOrderLevel, populateLevel, THINKING_LABEL } from "@/components/thinking-default";
 import { ThinkingMenuList } from "@/components/settings/model-menu";
+import { ProviderMark } from "@/components/provider-mark";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 
 /** The pickers' slot identity — same roster language as the Agent
  *  section's slot rows. */
 const SLOT_META: Record<ModelSlotName, { label: string; roster: string }> = {
-	strong: { label: "Strong", roster: "Prober, teacher" },
-	cheap: { label: "Cheap", roster: "Researcher, demo builder, extractor, auditor" },
-	vision: { label: "Vision", roster: "Visual maker + PDF reader" },
+	strong: { label: "Strong", roster: "Lessons and practice" },
+	cheap: { label: "Cheap", roster: "Research, graph updates and other background work" },
+	vision: { label: "Vision", roster: "Understanding images and PDFs" },
 };
 const SLOT_ORDER: readonly ModelSlotName[] = ["strong", "cheap", "vision"];
 
@@ -125,12 +126,15 @@ export function prefillLevelFromPin(
 export function SetupKeysBody({
 	providers,
 	provider,
+	mode = "api",
+	credentials = false,
 	value,
 	saving,
 	error,
 	menuOpen,
 	onToggleMenu,
 	onPick,
+	onModeChange,
 	onValue,
 	onSave,
 	menuAnchor,
@@ -141,33 +145,63 @@ export function SetupKeysBody({
 	/** The chosen provider; null = the picker trigger reads "Pick a
 	 *  provider…". */
 	provider: ProviderKeyInfo | null;
+	mode?: "api" | "subscription";
+	credentials?: boolean;
 	value: string;
 	saving: boolean;
 	error: string | null;
 	menuOpen: boolean;
 	onToggleMenu: () => void;
 	onPick: (p: ProviderKeyInfo) => void;
+	onModeChange?: (mode: "api" | "subscription") => void;
 	onValue: (v: string) => void;
 	onSave: () => void;
 	/** The MenuShell anchor — wired by the wrapper (its triggerRef). */
 	menuAnchor: React.RefObject<HTMLDivElement | null>;
 }) {
 	return (
-		<div className="flex flex-col gap-3 px-6 py-5" data-testid="setup-stage-keys">
-			<p className="text-xs text-muted-foreground">
-				Choose your AI provider and paste its API key. You’ll pick your models next.
-			</p>
-			<div className="flex flex-col gap-2">
-				<div ref={menuAnchor} className="relative max-w-96">
+		<div className="flex flex-col gap-5 px-6 py-5" data-testid="setup-stage-keys">
+			{!credentials && <>
+				<p className="text-sm leading-6 text-muted-foreground">Choose how you want to connect. You’ll pick your learning models next.</p>
+				<div className="flex w-fit gap-1 rounded-lg bg-background p-1" role="group" aria-label="Connection method">
+					{(["api", "subscription"] as const).map((item) => <button key={item} type="button" aria-pressed={mode === item} onClick={() => onModeChange?.(item)} className={`rounded-md px-3 py-2 text-sm ${mode === item ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{item === "api" ? "API key" : "Subscription"}</button>)}
+				</div>
+			</>}
+			{mode === "subscription" ? <div className="space-y-4">
+				<div><h3 className="text-sm font-semibold">Sign in with a subscription</h3><p className="mt-1 text-sm leading-6 text-muted-foreground">Choose an account to connect, if your plan supports it.</p></div>
+				<SubscriptionConnections setup />
+			</div> : credentials && provider ? <div className="space-y-4">
+				<div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
+					<ProviderMark provider={provider.id} className="size-5 text-foreground" />
+					<div><h3 className="text-sm font-semibold">{provider.label}</h3><p className="mt-0.5 text-xs text-muted-foreground">API key connection</p></div>
+				</div>
+				<div><label htmlFor="setup-api-key" className="mb-2 block text-sm font-medium">API key</label>
+					<input id="setup-api-key" type="password" autoComplete="off" value={value} onChange={(e) => onValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && value.trim()) onSave(); }} placeholder="Paste your key" aria-label={`${provider.label} key`} data-testid="setup-key-input" disabled={saving} autoFocus className="h-11 w-full rounded-md border border-border bg-background px-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400" />
+					<p className="mt-2 text-xs leading-5 text-muted-foreground">Saved locally. The key is checked for format; your provider verifies it when you start a session.</p>
+				</div>
+				{error && <p role="alert" data-testid="setup-key-error" className="text-sm text-red-400">{error}</p>}
+			</div> : <>
+			<h3 className="text-sm font-semibold">Provider</h3>
+			<div className="grid grid-cols-2 gap-2" aria-label="Popular providers">
+				{["openai", "anthropic", "google", "openrouter", "opencode", "xai"].map((id) => providers?.find((item) => item.id === id)).filter((item): item is ProviderKeyInfo => !!item).map((item) => (
+					<button key={item.id} type="button" data-testid={`setup-provider-${item.id}`} onClick={() => onPick(item)} aria-pressed={provider?.id === item.id}
+						className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left text-sm transition-colors ${provider?.id === item.id ? "border-blue-500 bg-blue-500/10 text-foreground" : "border-border bg-background text-foreground hover:bg-accent"}`}>
+						<ProviderMark provider={item.id} className="size-5 text-foreground text-[10px] font-semibold" />
+						<span className="truncate font-medium">{item.label}</span>
+						{provider?.id === item.id && <span aria-hidden="true" className="ml-auto text-blue-400">✓</span>}
+					</button>
+				))}
+			</div>
+			<div ref={menuAnchor} className="relative">
 					<button
 						type="button"
 						aria-label="Provider"
 						data-testid="setup-key-provider"
 						aria-expanded={menuOpen}
 						onClick={onToggleMenu}
-						className="flex h-7 w-full items-center gap-1 rounded-sm border border-border bg-background px-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50"
+						className="flex min-h-10 w-full items-center gap-2 rounded-md border border-border bg-background px-3 font-ui text-sm text-foreground transition-colors hover:border-muted-foreground/50"
 					>
-						<span className="min-w-0 flex-1 truncate text-left">{provider ? provider.label : "Pick a provider…"}</span>
+						<span className="min-w-0 flex-1 truncate text-left">{provider ? provider.label : "Browse all providers…"}</span>
 						<span aria-hidden className="text-muted-foreground">
 							▾
 						</span>
@@ -184,40 +218,7 @@ export function SetupKeysBody({
 						</MenuShell>
 					)}
 				</div>
-				{provider && (
-					<div className="flex max-w-96 items-center gap-2">
-						<input
-							type="text"
-							value={value}
-							onChange={(e) => onValue(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && value.trim()) onSave();
-							}}
-							placeholder="Paste key…"
-							aria-label={`${provider.label} key`}
-							data-testid="setup-key-input"
-							disabled={saving}
-							autoFocus
-							className="h-7 min-w-0 flex-1 rounded-sm border border-border bg-background px-1.5 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-muted-foreground/50"
-						/>
-						<button
-							type="button"
-							onClick={onSave}
-							disabled={saving || !value.trim()}
-							data-testid="setup-key-save"
-							className="shrink-0 rounded-sm border border-border bg-background px-3 py-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-40"
-						>
-							{saving ? "Saving…" : "Save key"}
-						</button>
-					</div>
-				)}
-				{error && (
-					<p role="alert" data-testid="setup-key-error" className="text-xs text-red-400">
-						{error}
-					</p>
-				)}
-			</div>
-			<div className="mt-2 border-t border-border/60 pt-4"><h3 className="mb-3 font-ui text-xs text-muted-foreground">Subscriptions</h3><SubscriptionConnections setup /></div>
+			</>}
 		</div>
 	);
 }
@@ -248,6 +249,7 @@ export function SetupDialog(props: SetupDialogProps) {
 
 function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 	const backdropDismiss = useBackdropDismiss(onClose);
+	const dialogRef = useRef<HTMLDivElement>(null);
 	const { catalog, failed, refresh } = useModelCatalog();
 	const providerStageSeen = useRef(false);
 	const connectionCloseRequested = useRef(false);
@@ -263,6 +265,8 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 	// see the trigger testid branch below).
 	const [keyProviders, setKeyProviders] = useState<ProviderKeyInfo[] | undefined>(undefined);
 	const [keyProvider, setKeyProvider] = useState<ProviderKeyInfo | null>(null);
+	const [connectionMode, setConnectionMode] = useState<"api" | "subscription">("api");
+	const [credentialStep, setCredentialStep] = useState(false);
 	const [keyValue, setKeyValue] = useState("");
 	const [keySaving, setKeySaving] = useState(false);
 	const [keyError, setKeyError] = useState<string | null>(null);
@@ -271,6 +275,11 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 	// Stage 2's slot menus anchor by anchorTestid instead — see the slot
 	// MenuShell below for why a freshly attached ref cannot work there.
 	const keyTriggerRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const previous = document.activeElement as HTMLElement | null;
+		dialogRef.current?.focus();
+		return () => { if (previous?.isConnected) previous.focus(); };
+	}, []);
 
 	// The keys signal (zero-keys wave): keys-section saves/deletes AND
 	// THIS dialog's own first-key save dispatch it; the fetch effect below
@@ -422,13 +431,16 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 	const keysBody = <SetupKeysBody
 		providers={keyProviders}
 		provider={keyProvider}
+		mode={connectionMode}
+		credentials={credentialStep}
 		value={keyValue}
 		saving={keySaving}
 		error={keyError}
 		menuOpen={keyMenuOpen}
 		menuAnchor={keyTriggerRef}
 		onToggleMenu={() => setKeyMenuOpen((v) => !v)}
-		onPick={(p) => { setKeyProvider(p); setKeyMenuOpen(false); setKeyError(null); }}
+		onPick={(p) => { if (p.id !== keyProvider?.id) setKeyValue(""); setKeyProvider(p); setKeyMenuOpen(false); setKeyError(null); }}
+		onModeChange={(mode) => { setConnectionMode(mode); setKeyMenuOpen(false); setKeyValue(""); setKeyError(null); }}
 		onValue={setKeyValue}
 		onSave={() => void saveKey()}
 	/>;
@@ -440,12 +452,22 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 			{...backdropDismiss}
 		>
 			<div
+				ref={dialogRef}
+				tabIndex={-1}
 				role="dialog"
 				aria-modal="true"
 				aria-label="Set up your models"
 				data-testid="setup-dialog"
-				className="settings-dialog-pop flex max-h-[85vh] w-[640px] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-card shadow-xl"
+				data-native-tab
+				className="settings-dialog-pop flex max-h-[85vh] w-[640px] max-w-[90vw] flex-col overflow-hidden rounded-md border border-border bg-card shadow-xl outline-none"
 				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(event) => {
+					if (event.key !== "Tab" || keyMenuOpen || openMenu) return;
+					const items = [...(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]') ?? [])];
+					const first = items[0], last = items.at(-1);
+					if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+					else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+				}}
 			>
 				<header className="flex h-15 shrink-0 items-center gap-3 border-b border-border px-5">
 					<h2 className="font-title text-2xl tracking-tight">Set up your models</h2>
@@ -461,6 +483,10 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 					</button>
 </Hint>
 				</header>
+				{stage !== "loading" && <div aria-label="Setup progress" className="mx-6 mt-4 grid grid-cols-2 gap-1 rounded-lg bg-background p-1 text-xs">
+					<span aria-current={stage === "keys" ? "step" : undefined} className={`rounded-md px-3 py-2 ${stage === "keys" ? "bg-accent font-medium text-foreground" : "text-muted-foreground"}`}><span className="mr-2 text-blue-400">1</span>Provider</span>
+					<span aria-current={stage === "pickers" ? "step" : undefined} className={`rounded-md px-3 py-2 ${stage === "pickers" ? "bg-accent font-medium text-foreground" : "text-muted-foreground"}`}><span className="mr-2 text-blue-400">2</span>Models</span>
+				</div>}
 
 				{failed && (
 					<p role="alert" data-testid="setup-catalog-error" className="px-6 py-3 text-sm text-foreground">
@@ -470,10 +496,10 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 				{stage === "loading" ? (
 					!failed && <p data-testid="setup-stage-loading" role="status" className="px-6 py-5 text-xs text-muted-foreground">Loading models…</p>
 				) : stage === "keys" ? (
-					<div className="flex flex-col px-6 py-5">{keysBody}</div>
+				<div className="min-h-0 overflow-y-auto">{keysBody}</div>
 				) : (
 					<div className="flex flex-col gap-4 overflow-y-auto px-6 py-5" data-testid="setup-stage-pickers">
-						<p className="text-xs text-muted-foreground">
+						<p className="text-sm leading-6 text-muted-foreground">
 							Pick the model for each tier. All three are required before chats can start.
 						</p>
 						{SLOT_ORDER.map((slot) => {
@@ -508,7 +534,7 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 												data-testid={`setup-trigger-${slot}`}
 												aria-expanded={openMenu?.slot === slot && openMenu.kind === "model"}
 												onClick={() => setOpenMenu(openMenu?.slot === slot && openMenu.kind === "model" ? null : { slot, kind: "model" })}
-												className="flex h-7 min-w-40 w-full items-center gap-1 rounded-sm border border-border bg-background px-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50"
+												className="flex h-10 min-w-40 w-full items-center gap-2 rounded-md border border-border bg-background px-3 font-ui text-sm text-foreground transition-colors hover:border-muted-foreground/50"
 											>
 												<span className="min-w-0 flex-1 truncate">{entry ? prettyModel(entry.id) : "Pick a model…"}</span>
 												<span aria-hidden className="text-muted-foreground">
@@ -565,7 +591,7 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 												aria-expanded={openMenu?.slot === slot && openMenu.kind === "thinking"}
 												disabled={!entry}
 												onClick={() => setOpenMenu(openMenu?.slot === slot && openMenu.kind === "thinking" ? null : { slot, kind: "thinking" })}
-												className="flex h-7 w-24 items-center gap-1 rounded-sm border border-border bg-background px-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-40"
+												className="flex h-10 w-28 items-center gap-2 rounded-md border border-border bg-background px-3 font-ui text-sm text-foreground transition-colors hover:border-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-40"
 											>
 												<span className="min-w-0 flex-1 truncate text-left">
 													{entry ? (level ? THINKING_LABEL[level] ?? level : "…") : "—"}
@@ -598,20 +624,19 @@ function OpenSetupDialog({ onClose, onDone }: SetupDialogProps) {
 								</div>
 							);
 						})}
-						<div className="flex items-center gap-3">
-							<button
-								type="button"
-								data-testid="setup-save"
-								disabled={!allPicked || saving}
-								onClick={() => void save()}
-								className="rounded-sm border border-border bg-background px-3 py-1.5 font-ui text-xs text-foreground transition-colors hover:border-muted-foreground/50 disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								{saving ? "Saving…" : "Save models"}
-							</button>
-							{error && <p className="text-xs text-red-400">{error}</p>}
-						</div>
+						{error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 					</div>
 				)}
+				{stage !== "loading" && <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4">
+					<div>{stage === "keys" && credentialStep && <button type="button" disabled={keySaving} onClick={() => { setCredentialStep(false); setKeyError(null); }} className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">Back</button>}</div>
+					<div className="flex items-center gap-2">
+						<button type="button" disabled={keySaving || saving} onClick={onClose} className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">Cancel</button>
+						{stage === "keys" && connectionMode === "api" && (credentialStep ?
+							<button type="button" data-testid="setup-key-save" onClick={() => void saveKey()} disabled={keySaving || !keyValue.trim()} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{keySaving ? "Saving…" : "Save key"}</button> :
+							<button type="button" data-testid="setup-provider-continue" onClick={() => setCredentialStep(true)} disabled={!keyProvider} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Continue</button>)}
+						{stage === "pickers" && <button type="button" data-testid="setup-save" disabled={!allPicked || saving} onClick={() => void save()} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">{saving ? "Saving…" : "Save models"}</button>}
+					</div>
+				</footer>}
 			</div>
 		</div>,
 		document.body,

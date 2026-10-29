@@ -13,7 +13,7 @@
  * healthy. The dock's chips + graph refetch track progress live through
  * /api/graph/status, as with session runs.
  */
-import { extraction, NotesImportError } from "@/src/server";
+import { extraction, isLocalMutation, NotesImportError } from "@/src/server";
 import {
 	ModelsNotConfiguredError,
 	PROVIDER_KEY_MISSING_CODE,
@@ -41,6 +41,7 @@ interface ImportResult {
 }
 
 export async function POST(request: Request) {
+	if (!isLocalMutation(request)) return Response.json({ error: "Invalid request origin." }, { status: 403 });
 	const form = await request.formData();
 	const files = form.getAll("files").filter((f): f is File => f instanceof File);
 	if (files.length === 0) {

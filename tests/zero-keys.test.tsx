@@ -76,23 +76,28 @@ describe("SetupKeysBody — stage 1's self-contained first-key screen", () => {
 		const html = renderToStaticMarkup(
 			createElement(SetupKeysBody, { ...base, providers: PROVIDERS, provider: null }),
 		);
-		assert.ok(html.indexOf('data-testid="setup-key-provider"') < html.indexOf('data-testid="chatgpt-login"'), "API keys remain primary, ChatGPT is secondary");
+		assert.ok(!html.includes('data-testid="chatgpt-login"'), "subscription sign-in is in its own stage");
 		assert.doesNotMatch(html, /chatgpt-privacy-notice|OpenAI privacy|Manage usage/);
-		assert.ok(html.includes("Choose your AI provider and paste its API key. You’ll pick your models next."));
+		assert.ok(html.includes("Choose how you want to connect. You’ll pick your learning models next."));
 		assert.doesNotMatch(html, /First, add|keys unlock|—/);
 		assert.ok(html.includes('data-testid="setup-key-provider"'));
-		assert.ok(html.includes("Pick a provider…"));
+		assert.ok(html.includes("Browse all providers…"));
 		assert.ok(!html.includes('data-testid="setup-key-input"'), "no paste field before a provider is picked");
 	});
 
-	it("after a pick: the paste input + Save join", () => {
+	it("the credential step shows the selected provider and a masked input", () => {
 		const html = renderToStaticMarkup(
-			createElement(SetupKeysBody, { ...base, providers: PROVIDERS, provider: PROVIDERS[0]! }),
+			createElement(SetupKeysBody, { ...base, providers: PROVIDERS, provider: PROVIDERS[0]!, credentials: true }),
 		);
 		assert.ok(html.includes('data-testid="setup-key-input"'));
-		assert.ok(html.includes('data-testid="setup-key-save"'));
-		assert.ok(html.includes("Save key"));
+		assert.ok(html.includes('type="password"'));
 		assert.ok(html.includes("OpenRouter"), "the chosen provider's label rides the trigger");
+	});
+
+	it("subscription connections are shown separately", () => {
+		const html = renderToStaticMarkup(createElement(SetupKeysBody, { ...base, providers: PROVIDERS, provider: null, mode: "subscription" }));
+		assert.ok(html.includes('data-testid="chatgpt-login"'));
+		assert.ok(!html.includes('data-testid="setup-key-provider"'));
 	});
 
 	it("a shape-gate 400 keeps its line inline — no Settings round-trip chrome", () => {
@@ -101,6 +106,7 @@ describe("SetupKeysBody — stage 1's self-contained first-key screen", () => {
 				...base,
 				providers: PROVIDERS,
 				provider: PROVIDERS[0]!!,
+				credentials: true,
 				error: "Expected 20+ characters",
 			}),
 		);

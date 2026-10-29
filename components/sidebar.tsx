@@ -6,10 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { MenuShell } from "@/components/menu-shell";
 import { DeleteSessionDialog } from "@/components/delete-session-dialog";
 import type { ChatDeleteMode } from "@/src/core";
-import { DumbbellIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { BookOpenIcon, CalendarDaysIcon, Code2Icon, DumbbellIcon, FolderOpenIcon, Layers3Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
 import { ActivitySection } from "@/components/activity-dock";
 import { CoverageMenuBlock } from "@/components/extraction-coverage";
-import { LhMark } from "@/components/lh-mark";
 import { BrailleSpinner } from "@/components/braille-spinner";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { SettingsDialogProvider, useSettingsDialog } from "@/components/settings/settings-dialog.tsx";
@@ -127,7 +126,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 		const stored = localStorage.getItem(STORAGE_KEY);
 		// Default: open (first run introduces the sidebar).
-		setOpen(stored === null ? true : stored === "1");
+		setOpen(stored === null ? window.innerWidth >= 768 : stored === "1");
 		setMounted(true);
 		return () => off?.();
 	}, []);
@@ -200,8 +199,8 @@ export function SidebarToggle() {
 	return (
 		<span
 			className={cn(
-				"sidebar-motion lh-no-drag relative flex h-9 shrink-0 overflow-hidden duration-200",
-				open ? "w-0 -mr-3" : "w-9 mr-0 lh-closed-toggle",
+				"sidebar-motion lh-no-drag relative flex h-11 shrink-0 overflow-hidden duration-200 sm:h-9",
+				open ? "w-0 -mr-3" : "w-11 mr-0 lh-closed-toggle sm:w-9",
 			)}
 		>
 			<Hint label="Open sidebar" action="toggle-sidebar">
@@ -212,7 +211,7 @@ export function SidebarToggle() {
 				aria-hidden={open}
 				tabIndex={open ? -1 : 0}
 				onClick={toggle}
-				className={cn("sidebar-motion duration-200", open ? "pointer-events-none opacity-0" : "opacity-100")}
+				className={cn("sidebar-motion size-11 duration-200 sm:size-9", open ? "pointer-events-none opacity-0" : "opacity-100")}
 			>
 				{/* Owner, round 6: size-4, SAME as the close glyph — the toggle
 				    must not grow when the sidebar is closed (it did: size-5 here).
@@ -644,7 +643,7 @@ function SessionsSidebar() {
 
 	return (
 		<aside
-			className={cn("sidebar-motion shrink-0 overflow-hidden duration-200", open ? "w-72" : "w-0")}
+			className={cn("sidebar-motion fixed bottom-0 left-0 top-0 z-40 shrink-0 overflow-hidden duration-200 md:relative md:bottom-auto md:top-auto", open ? "w-72" : "w-0")}
 			aria-hidden={!open}
 		>
 			<div className="flex h-full w-72 flex-col border-r bg-background">
@@ -665,15 +664,15 @@ function SessionsSidebar() {
 						// the graph view (keyboard-shortcuts routes it to "/",
 						// the same destination as this logo).
 						label="Home"
-						action="jump-graph"
 						side="right"
 					>
 						<Link
 							href="/"
 							aria-label="Home"
-							className="lh-no-drag flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50"
+							className="lh-no-drag flex h-9 items-center gap-2 rounded-md px-2 font-semibold text-foreground transition-colors hover:bg-accent"
 						>
-							<LhMark className="size-6" />
+							<BookOpenIcon className="size-4 text-blue-400" />
+							<span>Learnins</span>
 						</Link>
 					</Hint>
 					<Hint label="Close sidebar" action="toggle-sidebar">
@@ -698,9 +697,9 @@ function SessionsSidebar() {
 						type="button"
 						data-testid="new-session"
 						onClick={() => void newSession()}
-						className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+						className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					>
-						<PlusIcon className="size-3" />
+						<PlusIcon className="size-4" />
 						Teaching
 						<span className="sr-only">create a new teaching session</span>
 					</button>
@@ -708,13 +707,28 @@ function SessionsSidebar() {
 						type="button"
 						data-testid="new-session-practice"
 						onClick={() => router.push("/chat/new?mode=practice")}
-						className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+						className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					>
-						<DumbbellIcon className="size-3" />
+						<DumbbellIcon className="size-4" />
 						Practice
 						<span className="sr-only">create a new practice session</span>
 					</button>
 				</div>
+
+				<nav aria-label="Study tools" className="mx-3 mb-4 flex flex-col gap-1">
+					{[
+						{ href: "/graph", label: "Knowledge graph", icon: BookOpenIcon },
+						{ href: "/study/materials", label: "Materials", icon: FolderOpenIcon },
+						{ href: "/study/flashcards", label: "Flashcards", icon: Layers3Icon },
+						{ href: "/study/planner", label: "Planner", icon: CalendarDaysIcon },
+						{ href: "/study/coding", label: "Coding", icon: Code2Icon },
+					].map(({ href, label, icon: Icon }) => (
+						<Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}
+							className={cn("flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors", pathname === href ? "bg-blue-500/15 text-blue-300" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+							<Icon className="size-4" aria-hidden="true" />{label}
+						</Link>
+					))}
+				</nav>
 
 				<div className="mx-3 mb-2 flex items-center gap-2">
 					<span className="text-xs uppercase tracking-widest text-muted-foreground/70">Sessions</span>
@@ -941,8 +955,10 @@ function SessionsSidebar() {
 
 /** The app frame: sidebar inline + content. Rendered once in the root layout. */
 export function AppShell({ children }: { children: React.ReactNode }) {
+	const { open, toggle } = useSidebar();
 	return (
 		<SettingsDialogProvider>
+			{open && <button type="button" aria-label="Close sidebar" onClick={toggle} className="fixed inset-0 z-30 bg-black/50 md:hidden" />}
 			<SessionsSidebar />
 			<main className="min-w-0 flex-1">{children}</main>
 			{/* The single document-level keydown listener (keyboard wave A) —

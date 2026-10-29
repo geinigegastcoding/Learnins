@@ -115,7 +115,7 @@ describe("setup polish interactions", () => {
 		assert.equal(closed, 0);
 	});
 
-	it("provider trigger still toggles and picking an option still opens the key field", async () => {
+	it("provider selection advances to a key field through the footer", async () => {
 		await mount();
 		await click(element('[data-testid="setup-key-provider"]'));
 		await click(element('[data-testid="setup-key-provider"]'));
@@ -123,7 +123,10 @@ describe("setup polish interactions", () => {
 		await click(element('[data-testid="setup-key-provider"]'));
 		await click(element('[data-testid="provider-option-openrouter"]'));
 		assert.equal(document.querySelector('[data-testid="setup-key-provider-menu"]'), null);
+		assert.equal(document.querySelector('[data-testid="setup-key-input"]'), null);
+		await click(element('[data-testid="setup-provider-continue"]'));
 		assert.ok(document.querySelector('[data-testid="setup-key-input"]'));
+		assert.ok(document.querySelector('[data-testid="setup-key-save"]'));
 		assert.equal(closed, 0);
 	});
 

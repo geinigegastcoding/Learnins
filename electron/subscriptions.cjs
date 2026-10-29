@@ -1,7 +1,6 @@
 "use strict";
 const { randomUUID } = require("node:crypto");
 const path = require("node:path");
-const { createRequire, registerHooks } = require("node:module");
 const { pathToFileURL } = require("node:url");
 const { PROVIDERS, fileStore, validateCredential, safeHttps, failure } = require("./subscription-store.cjs");
 
@@ -21,20 +20,9 @@ const MESSAGES = {
 function publicError(error) { return MESSAGES[error?.code] ?? MESSAGES.unavailable; }
 /** Resolve the SAME SDK installation as the standalone server, through public exports. */
 async function loadSubscriptionSDK(baseDirectory) {
-	const resolve = createRequire(path.join(baseDirectory, "package.json"));
-	const load = (id) => {
-		// Pi exports are import-only. Resolve the public export with ESM
-		// conditions, then remove this synchronous, exact-specifier hook
-		// BEFORE evaluation; no private package path or global hook remains.
-		const hook = registerHooks({ resolve(specifier, context, next) {
-			return next(specifier, specifier === id ? { ...context, conditions: [...context.conditions, "import"] } : context);
-		} });
-		let file;
-		try { file = resolve.resolve(id); } finally { hook.deregister(); }
-		return import(pathToFileURL(file).href);
-	};
-	const [sdk, copilot, xai] = await Promise.all([load("@earendil-works/pi-ai"), load("@earendil-works/pi-ai/providers/github-copilot"), load("@earendil-works/pi-ai/providers/xai")]);
-	return { ...sdk, ...copilot, ...xai };
+	// An actual ESM module in the server tree lets Node resolve import-only
+	// package exports correctly, including on Electron's Node 24 runtime.
+	return import(pathToFileURL(path.join(baseDirectory, "electron", "provider-runtime.mjs")).href);
 }
 function validEndpoint(providerId, auth, credential) {
 	if (!auth || (!(typeof auth.apiKey === "string" && auth.apiKey.length > 0) && !Object.entries(auth.headers ?? {}).some(([key, value]) => ["authorization", "x-api-key", "api-key"].includes(key.toLowerCase()) && typeof value === "string" && value.trim().length > 0))) return false;
@@ -169,7 +157,7 @@ function createSubscriptions(options) {
 					attempt.public.prompt = { id, type: prompt.type, message: prompt.message, ...(prompt.placeholder ? { placeholder: prompt.placeholder } : {}), ...(prompt.type === "select" ? { options: clone(prompt.options) } : {}) };
 					abort.signal.addEventListener("abort", stop, { once: true }); prompt.signal?.addEventListener("abort", stop, { once: true }); changed(entry);
 				}),
-			}, { agentName: "LearnHarness" });
+			}, { agentName: "Learnins" });
 			if (!active()) throw failure("cancel"); validateCredential(providerId, credential);
 			const auth = await entry.provider.auth.oauth.toAuth(credential);
 			if (!validEndpoint(providerId, auth, credential) || !active()) throw failure("login");

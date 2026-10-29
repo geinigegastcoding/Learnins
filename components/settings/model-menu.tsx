@@ -236,7 +236,7 @@ export function fontMenuResults(query: string, families: string[]): Array<string
 		.map((r) => r.f);
 	// The default row's searchable identity: the factory family + the
 	// word "default" (the suffix it renders with).
-	const defaultScore = fuzzyScore(query, "Source Sans 3", "default");
+	const defaultScore = fuzzyScore(query, "Geist", "default");
 	if (query.trim() === "" || defaultScore !== null) return [null, ...scored];
 	return scored;
 }
@@ -343,7 +343,7 @@ export function FontMenuList({
 										i === menuIdx ? "bg-accent/40 ring-1 ring-inset ring-border" : ""
 									}${effective && i !== menuIdx ? " bg-muted/60" : ""}`}
 								>
-									<span className="truncate text-card-foreground">{family ?? "Source Sans 3"}</span>
+									<span className="truncate text-card-foreground">{family ?? "Geist"}</span>
 									<span className="shrink-0 text-muted-foreground">{isDefault ? "default" : effective && <span aria-hidden>✓</span>}</span>
 								</button>
 							</li>

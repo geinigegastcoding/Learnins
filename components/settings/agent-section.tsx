@@ -772,14 +772,12 @@ export function AgentSection({
 				))}
 				{(() => {
 					const engine = agent?.search?.engine ?? null;
-					const anyKey = engineKeys.tavily === true || engineKeys.brave === true;
 					const open = openMenu?.target === "search";
 					return (
 						<SettingsRow
 							label="Search engine"
 							hint={search?.reason ?? undefined}
 							testid="search-engine-row"
-							dimmed={!anyKey}
 						>
 							<span ref={open ? menuAnchorRef : undefined} className="relative flex items-center gap-2">
 								<MenuTrigger
@@ -790,7 +788,6 @@ export function AgentSection({
 									open={open}
 									onClick={() => setOpenMenu(open ? null : { target: "search", kind: "engine" })}
 									widthClass="min-w-20"
-									disabled={!anyKey}
 								/>
 								{open && (
 									<MenuShell

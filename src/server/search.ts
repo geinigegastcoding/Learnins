@@ -20,6 +20,7 @@
  */
 
 import type { SearchEngineId, SearchHit, SearchProvider, SearchStatus } from "../core/search.ts";
+import { parseHTML } from "linkedom";
 import { keyValue } from "./keys.ts";
 import { effectiveSettings } from "./stores.ts";
 
@@ -108,6 +109,50 @@ export function braveProvider(apiKey: string, fetchFn: FetchLike = fetch): Searc
 	};
 }
 
+/** Keyless web search; if the search service challenges the request, use
+ * Wikipedia's public search as an honestly narrower fallback. */
+export function freeSearchProvider(fetchFn: FetchLike = fetch): SearchProvider {
+	return {
+		id: "duckduckgo",
+		async search(query, count) {
+			const limit = Math.max(1, Math.min(count, 20));
+			try {
+				const url = new URL("https://lite.duckduckgo.com/lite/");
+				url.searchParams.set("q", query);
+				const response = await fetchFn(url.toString(), {
+					headers: { "user-agent": "Mozilla/5.0 (compatible; Learnins/1.0)" },
+					signal: AbortSignal.timeout(15_000),
+				});
+				if (!response.ok || response.status === 202) throw new Error("Free web search is temporarily unavailable.");
+				const html = await response.text();
+				const { document } = parseHTML(html);
+				const hits: SearchHit[] = [];
+				for (const link of document.querySelectorAll("a.result-link")) {
+					const redirect = new URL(link.getAttribute("href") ?? "", "https://duckduckgo.com");
+					const destination = redirect.searchParams.get("uddg") ?? redirect.href;
+					const parsed = new URL(destination);
+					if (!["https:", "http:"].includes(parsed.protocol)) continue;
+					const row = link.closest("tr");
+					const snippet = row?.nextElementSibling?.querySelector(".result-snippet")?.textContent ?? "";
+					hits.push({ title: (link.textContent ?? "").trim(), url: parsed.href, snippet: snippet.replace(/\s+/g, " ").trim().slice(0, 500) });
+					if (hits.length >= limit) break;
+				}
+				if (hits.length) return hits;
+			} catch { /* The public encyclopedia fallback remains available. */ }
+			const url = new URL("https://en.wikipedia.org/w/api.php");
+			for (const [key, value] of Object.entries({ action: "query", list: "search", srsearch: query, format: "json", utf8: "1", srlimit: String(limit) })) url.searchParams.set(key, value);
+			const response = await fetchFn(url.toString(), { headers: { "user-agent": "Learnins/1.0 (local learning application)" }, signal: AbortSignal.timeout(15_000) });
+			if (!response.ok) throw new Error(`Free search is unavailable (HTTP ${response.status}). Try again later.`);
+			const data = await response.json() as { query?: { search?: Array<{ title: string; snippet: string }> } };
+			return (data.query?.search ?? []).map((item) => ({
+				title: item.title,
+				url: `https://en.wikipedia.org/wiki/${encodeURIComponent(item.title.replace(/ /g, "_"))}`,
+				snippet: parseHTML(`<span>${item.snippet}</span>`).document.querySelector("span")?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+			}));
+		},
+	};
+}
+
 /** The engines this wave ships, in PREFERENCE order (both keys present,
  *  no explicit pin → the first live engine wins; owner decision
  *  2026-09-20: Tavily first — the AI-native search API the wave chose). */
@@ -132,6 +177,7 @@ export function resolveSearchEngineFor(
 	/** Per-engine live keys (absent engine = absent property is fine). */
 	keys: Partial<Record<SearchEngineId, string | undefined>>,
 ): SearchStatus & { key: string | null } {
+	if (pinned === "duckduckgo") return { available: true, engine: pinned, reason: "free web search", key: null };
 	const pinnedKey = pinned ? keys[pinned] ?? null : null;
 	if (pinned) {
 		if (!pinnedKey) {
@@ -160,13 +206,15 @@ export function resolveSearchEngineFor(
  *  settings record's pin + the auth store fresh each call, so a key saved
  *  mid-session activates on the next check (no restart). */
 export function searchStatus(): SearchStatus {
+	const pinned = effectiveSettings().agent.search?.engine;
 	const { available, engine, reason } = resolveSearchEngineFor(
-		effectiveSettings().agent.search?.engine,
+		pinned,
 		{
 			tavily: engineKey("tavily") ?? undefined,
 			brave: engineKey("brave") ?? undefined,
 		},
 	);
+	if (!pinned && !available) return { available: true, engine: "duckduckgo", reason: "Free web search (Wikipedia fallback)" };
 	return { available, engine, reason };
 }
 
@@ -180,10 +228,12 @@ export function searchAvailable(): boolean {
  *  the tool layer (Teacher stream) calls this once per search, so key
  *  rotations take effect immediately. */
 export function searchProvider(): SearchProvider | null {
-	const resolved = resolveSearchEngineFor(effectiveSettings().agent.search?.engine, {
+	const pinned = effectiveSettings().agent.search?.engine;
+	const resolved = resolveSearchEngineFor(pinned, {
 		tavily: engineKey("tavily") ?? undefined,
 		brave: engineKey("brave") ?? undefined,
 	});
+	if ((!pinned && !resolved.available) || resolved.engine === "duckduckgo") return freeSearchProvider();
 	if (!resolved.available || !resolved.key) return null;
 	return resolved.engine === "tavily" ? tavilyProvider(resolved.key) : braveProvider(resolved.key);
 }

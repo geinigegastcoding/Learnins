@@ -1495,13 +1495,13 @@ export function GraphView({
 		<div className="relative h-full w-full">
 			{isEmpty ? (
 				// The empty graph keeps the first action clear without zero-valued statistics.
-				<div className="flex h-full w-full items-center justify-center px-4">
-					<div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
-						<WaypointsIcon className="size-10 opacity-40" strokeWidth={1.25} />
-						<div className="text-lg font-medium text-foreground">Knowledge graph</div>
-						<p className="max-w-sm text-sm">
-							Start a session or import notes to build your graph.
-						</p>
+				<div className="relative flex h-full w-full items-center justify-center px-4">
+					<div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(#526277_1px,transparent_1px)] bg-[size:24px_24px] opacity-15 [mask-image:radial-gradient(ellipse_at_center,black,transparent_72%)]" />
+					<div className="relative flex max-w-md flex-col items-center gap-3 text-center text-muted-foreground">
+						<div className="rounded-2xl border border-border bg-card p-4 text-blue-300"><WaypointsIcon className="size-7" strokeWidth={1.5} /></div>
+						<div className="text-lg font-semibold text-foreground">Your knowledge graph</div>
+						<p className="max-w-sm text-sm leading-6">Start a session or import notes to build your graph. Connections will appear here as you learn.</p>
+						<Link href="/study/materials" className="mt-1 inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"><FileTextIcon className="size-4" />Add learning material</Link>
 					</div>
 				</div>
 			) : (

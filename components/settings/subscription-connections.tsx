@@ -7,11 +7,13 @@ import { ConnectionDialog, ConnectionFooter, ConnectionRow } from "./connection-
 import { ChatGPTConnection } from "./chatgpt-connection";
 import { Toggle } from "./controls";
 import { useNativeSubscriptionBridge } from "./subscription-client";
+import { ProviderMark } from "@/components/provider-mark";
+import { CodexConnection } from "./codex-connection";
 
 export const COPILOT_POLICY_NOTICE = "Pi's native Copilot sign-in may enable additional models whose policy is not yet configured. Models explicitly disabled by policy are not enabled. Organization restrictions still apply.";
-export const SUBSCRIPTION_BACKGROUND_HINT = "Allow LearnHarness helper agents and automatic follow-ups to use this connection.";
-export function subscriptionNotice(label: string, web = false): string { return `Your prompts, tool results, and relevant session context are sent to ${label} to run the work you select. Credentials are stored ${web ? "on the machine running LearnHarness" : "locally"} in an owner-only plaintext file. Provider terms, data-use policies, and plan limits apply. This connection never falls back to an API key.`; }
-export function subscriptionDisconnectCopy(label: string, web = false): string { return `Disconnect ${label} from LearnHarness? This stops work using this connection and removes its saved credentials from ${web ? "the machine running LearnHarness" : "this device"}. It does not cancel your subscription or revoke access at the provider. Saved model choices will remain unavailable until you reconnect or change them.`; }
+export const SUBSCRIPTION_BACKGROUND_HINT = "Allow Learnins helper agents and automatic follow-ups to use this connection.";
+export function subscriptionNotice(label: string, web = false): string { return `Your prompts, tool results, and relevant session context are sent to ${label} to run the work you select. Credentials are stored ${web ? "on the machine running Learnins" : "locally"} in a plaintext file protected by your system's file permissions. Provider terms, data-use policies, and plan limits apply. This connection never falls back to an API key.`; }
+export function subscriptionDisconnectCopy(label: string, web = false): string { return `Disconnect ${label} from Learnins? This stops work using this connection and removes its saved credentials from ${web ? "the machine running Learnins" : "this device"}. It does not cancel your subscription or revoke access at the provider. Saved model choices will remain unavailable until you reconnect or change them.`; }
 export function emptySubscriptionStatus(providerId: NativeSubscriptionProviderId): NativeSubscriptionStatus { return { providerId, available: false, connected: false, pending: false, allowBackgroundUse: true, connectionId: null, epoch: 0, authorityRevision: 0, revision: 0 }; }
 const Context = createContext({ statuses: [] as NativeSubscriptionStatus[], busy: false, open: (_providerId: NativeSubscriptionProviderId) => {} });
 const CONTROL_ERROR = "The connection could not be changed. Try again.";
@@ -119,11 +121,11 @@ export function NativeSubscriptionUIProvider({ children }: { children: React.Rea
 	</Context.Provider>;
 }
 
-export function NativeSubscriptionConnection({ providerId, labelClassName }: { providerId: NativeSubscriptionProviderId; labelClassName?: string }) {
+export function NativeSubscriptionConnection({ providerId, labelClassName, setup = false }: { providerId: NativeSubscriptionProviderId; labelClassName?: string; setup?: boolean }) {
 	const ui = useContext(Context), descriptor = NATIVE_SUBSCRIPTIONS.find((p) => p.providerId === providerId)!;
 	const status = ui.statuses.find((s) => s.providerId === providerId) ?? emptySubscriptionStatus(providerId);
 	return <div className="flex flex-col gap-2" data-testid={`${providerId}-connection`}>
-		<ConnectionRow label={descriptor.label} labelClassName={labelClassName} action={status.connectionId ? "Manage…" : "Connect"} disabled={ui.busy || !status.available || ui.statuses.some((s) => s.pending)} onAction={() => ui.open(providerId)} />
+		<ConnectionRow label={descriptor.label} icon={setup ? <ProviderMark provider={providerId} className="size-5 text-[10px] font-semibold" /> : undefined} labelClassName={labelClassName} action={status.connectionId ? "Manage…" : "Connect"} disabled={ui.busy || !status.available || ui.statuses.some((s) => s.pending)} onAction={() => ui.open(providerId)} />
 		{status.error && <p role="alert" className="text-xs text-red-400">{status.error}</p>}
 	</div>;
 }
@@ -131,7 +133,7 @@ export function SubscriptionConnections({ setup = false }: { setup?: boolean }) 
 	// Providers uses ordinary settings-label typography. The setup surface
 	// keeps its existing compact labels; dialogs and actions are untouched.
 	const labelClassName = setup ? undefined : "font-prose text-(length:--lh-prose-size) text-foreground";
-	return <div className="space-y-3" data-testid="subscription-connections"><ChatGPTConnection setup={setup} labelClassName={labelClassName} />{NATIVE_SUBSCRIPTIONS.map((p) => <NativeSubscriptionConnection key={p.providerId} providerId={p.providerId} labelClassName={labelClassName} />)}</div>;
+	return <div className={setup ? "grid grid-cols-1 gap-2 sm:grid-cols-2 [&>div]:rounded-lg [&>div]:border [&>div]:border-border [&>div]:bg-background [&>div]:p-3 [&>div>div:first-child]:justify-between" : "space-y-3"} data-testid="subscription-connections"><ChatGPTConnection setup={setup} labelClassName={labelClassName} /><CodexConnection setup={setup} labelClassName={labelClassName} />{NATIVE_SUBSCRIPTIONS.map((p) => <NativeSubscriptionConnection key={p.providerId} providerId={p.providerId} setup={setup} labelClassName={labelClassName} />)}</div>;
 }
 export function NativeSubscriptionBackgroundAccess({ provider }: { provider: string | undefined }) {
 	const ui = useContext(Context), descriptor = NATIVE_SUBSCRIPTIONS.find((p) => p.logicalId === provider);
