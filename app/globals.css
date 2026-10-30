@@ -31,6 +31,15 @@
 	outline-offset: 2px;
 }
 
+#dashboard-topic:focus {
+	outline: none;
+}
+
+form:has(> #dashboard-topic:focus-visible) {
+	outline: 2px solid #e6e6e6;
+	outline-offset: 2px;
+}
+
 /* A neutral black canvas, with raised surfaces and edges for separation. */
 :root {
 	color-scheme: dark;
