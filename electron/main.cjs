@@ -675,11 +675,10 @@ async function main() {
 				for (const win of BrowserWindow.getAllWindows()) win.webContents.send("lh:subscriptions:changed");
 			},
 		});
-		await subscriptions.ready;
 		log(`starting server: ${serverEntry()}`);
 		log(`data dir: ${DATA_DIR()}${fs.existsSync(AUTH_FILE()) ? " · auth.json: present" : " · auth.json: ABSENT (no BYOK keys yet)"}`);
 		await startServer(new URL(url).port);
-		await waitUntilUp(url);
+		await waitUntilUp(new URL("/brands/xai.svg", url).href);
 		log(`server up: ${url}`);
 	} else {
 		log(`dev mode: ${devUrl}`);

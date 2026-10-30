@@ -40,7 +40,7 @@ process.on("SIGTERM", () => stop());
 try {
 	let ready = false;
 	for (let attempt = 0; attempt < 120 && !finished; attempt++) {
-		try { const response = await fetch(devUrl, { signal: AbortSignal.timeout(1000) }); if (response.ok) { ready = true; break; } }
+		try { const response = await fetch(`${devUrl}/brands/xai.svg`, { signal: AbortSignal.timeout(1000) }); if (response.ok) { ready = true; break; } }
 		catch { /* The server may still be starting. */ }
 		await new Promise((resolve) => setTimeout(resolve, 500));
 	}
