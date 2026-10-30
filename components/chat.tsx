@@ -742,6 +742,24 @@ export function Chat({
 	// recovers from it. Later compaction requires new input instead.
 	const retryable = (status === "ready" || status === "error") && !busy && !compacting && endsInFailedTurn(nativeMessages);
 	const retryFailedTurn = () => retryFailedResponse(send, draftRef);
+	const lastVisibleMessage = messages.at(-1);
+	const lastVisibleText = lastVisibleMessage?.role === "assistant"
+		? lastVisibleMessage.parts.filter((part) => part.type === "text").map((part) => part.text).join("\n").trim()
+		: "";
+	const lastNativeAssistant = [...nativeMessages].reverse().find((message) => message.role === "assistant");
+	const finalTextIsQuestion = /[?؟？][\s*_`~"'”’)}\]]*$/u.test(lastVisibleText);
+	const canContinueTeaching =
+		kind === "teach" &&
+		status === "ready" &&
+		!busy &&
+		!compacting &&
+		!error &&
+		!pending &&
+		!activeProblem &&
+		lastVisibleMessage?.role === "assistant" &&
+		lastVisibleText.length > 0 &&
+		(lastNativeAssistant?.stopReason === "stop" || lastNativeAssistant?.stopReason === "length") &&
+		!finalTextIsQuestion;
 	const canSend =
 		(text.trim().length > 0 || dictation.active) && !pending && !activeProblem && !compacting;
 
@@ -1516,8 +1534,9 @@ export function Chat({
 												</div>
 											</div>
 									) : (
-									<Message from="assistant" className="max-w-full">
-									<MessageContent className="w-full">
+									<>
+										<Message from="assistant" className="max-w-full">
+											<MessageContent className="w-full">
 											{m.parts.map((part, pi) => {
 												const isLastPart = mi === messages.length - 1 && pi === m.parts.length - 1;
 												// The step boundary where teaching begins (round 8): when
@@ -1613,7 +1632,21 @@ export function Chat({
 												}
 											})}
 										</MessageContent>
-									</Message>
+										</Message>
+										{canContinueTeaching && mi === messages.length - 1 && (
+											<div className="mt-2 flex">
+												<Button
+													variant="ghost"
+													size="sm"
+													type="button"
+													data-testid="continue-teaching"
+													onClick={() => send({ type: "text", text: "Continue." })}
+												>
+													Continue lesson <ArrowRightIcon className="size-3.5" />
+												</Button>
+											</div>
+										)}
+									</>
 									)}
 								</Fragment>
 							))}
