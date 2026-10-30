@@ -56,6 +56,12 @@ describe("startDraftSession — the create-on-send contract", () => {
 		assert.equal(calls.length, 1, "a single create call — the birth stamp is server-side");
 	});
 
+	it("includes the selected project when starting a practice session", async () => {
+		const { f, calls } = fakeFetch("c_project");
+		await startDraftSession("practice", f, "practice", [], undefined, undefined, "project-1");
+		assert.deepEqual(calls[0]!.body, { title: "practice", kind: "practice", projectId: "project-1" });
+	});
+
 	it("a long opening text stays out of the URL and is stashed for the chat page", async () => {
 		const mem = new Map<string, string>();
 		const fake = {

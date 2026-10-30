@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { BookOpenIcon, CalendarDaysIcon, ChevronRightIcon, Code2Icon, FileTextIcon, Layers3Icon, PlusIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { SidebarToggle } from "@/components/sidebar";
 import { postNotesImport } from "@/components/notes-import";
-import { calendarFile, googleCalendarUrl, planExam, reviewCard, type GraphSnapshot, type Rating, type StudyCard, type StudyData, type StudyDeck, type StudyMaterial } from "@/src/core";
+import { calendarFile, googleCalendarUrl, planExam, reviewCard, type ChatListItem, type GraphSnapshot, type Rating, type StudyCard, type StudyData, type StudyDeck, type StudyMaterial } from "@/src/core";
 import { CodingWorkspace } from "@/components/study-coding";
 
-export type StudySection = "materials" | "flashcards" | "planner" | "coding";
+export type StudySection = "materials" | "flashcards" | "planner" | "coding" | "projects";
 const sections = {
+	projects: { title: "Projects", description: "Keep your files and notes together.", icon: BookOpenIcon },
 	materials: { title: "Materials", description: "Keep course files and transcripts close to your learning sessions.", icon: FileTextIcon },
 	flashcards: { title: "Flashcards", description: "Practise the facts and vocabulary you want to remember.", icon: Layers3Icon },
 	planner: { title: "Study planner", description: "Make a revision plan for your next exam.", icon: CalendarDaysIcon },
@@ -46,7 +47,7 @@ function useStudy() {
 				method: "PUT", headers: { "content-type": "application/json" },
 				// Material text can be large; the server preserves the authoritative
 				// library at this revision while saving cards and plans.
-				body: JSON.stringify({ version: next.version, revision: next.revision, decks: next.decks, exams: next.exams }),
+				body: JSON.stringify({ version: next.version, revision: next.revision, decks: next.decks, exams: next.exams, projects: next.projects }),
 			});
 			const body = await response.json();
 			if (!response.ok) {
@@ -109,7 +110,7 @@ export function StudyWorkspace({ section }: { section: StudySection }) {
 					</div>
 					{study.error && <div role="alert" className="mb-5 rounded-md border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-200">{study.error} <button type="button" className="ml-2 underline" onClick={() => { study.setError(""); void study.load(); }}>Reload</button></div>}
 					{section === "coding" ? <CodingWorkspace /> : !study.data ? <p role="status" className="text-sm text-muted-foreground">{study.error ? "Study data is unavailable." : "Loading your study space…"}</p> :
-						section === "materials" ? <Materials study={study} /> :
+						section === "projects" ? <Projects study={study} /> : section === "materials" ? <Materials study={study} /> :
 						section === "flashcards" ? <Flashcards study={study} /> : <Planner study={study} />}
 				</div>
 			</main>
@@ -119,6 +120,87 @@ export function StudyWorkspace({ section }: { section: StudySection }) {
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
 	return <section className={`rounded-lg border border-border bg-card ${className}`}>{children}</section>;
+}
+
+function Projects({ study }: { study: StudyController }) {
+	const [selected, setSelected] = useState("");
+	const [newName, setNewName] = useState("");
+	const [dirty, setDirty] = useState(false);
+	const [chats, setChats] = useState<ChatListItem[]>([]);
+	const [moving, setMoving] = useState(false);
+	const project = study.data!.projects.find((item) => item.id === selected);
+	const loadChats = useCallback(async () => {
+		try { const response = await fetch("/api/chats", { cache: "no-store" }); if (!response.ok) throw new Error(); const body = await response.json(); setChats(body.chats); }
+		catch { study.setError("Sessions could not be loaded."); }
+	}, [study.setError]);
+	useEffect(() => { void loadChats(); }, [loadChats]);
+	async function moveChat(id: string, projectId: string | null) {
+		if (moving || !id) return;
+		setMoving(true);
+		try {
+			const response = await fetch(`/api/chats/${encodeURIComponent(id)}/project`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ projectId }) });
+			if (!response.ok) { const body = await response.json(); throw new Error(body.error || "Could not move session."); }
+			await loadChats();
+		} catch (error) { study.setError(error instanceof Error ? error.message : "Could not move session."); }
+		finally { setMoving(false); }
+	}
+	useEffect(() => {
+		const warn = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
+		window.addEventListener("beforeunload", warn);
+		return () => window.removeEventListener("beforeunload", warn);
+	}, [dirty]);
+	async function create(event: React.FormEvent) {
+		event.preventDefault();
+		const name = newName.trim();
+		if (!name) return;
+		if (dirty && !confirm("Discard unsaved project details?")) return;
+		const id = crypto.randomUUID();
+		if (await study.save((data) => ({ ...data, projects: [...data.projects, { id, name, notes: "", materialIds: [] }] }))) { setNewName(""); setDirty(false); setSelected(id); }
+	}
+	return <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
+		<div className="space-y-4"><form onSubmit={create} className="flex gap-2"><input className={field} aria-label="New project name" placeholder="New project name" maxLength={200} value={newName} onChange={(e) => setNewName(e.target.value)} /><button className={primary} disabled={study.busy || !newName.trim()} aria-label="Create project"><PlusIcon className="size-4" /></button></form>
+			<nav aria-label="Projects" className="space-y-1">{study.data!.projects.map((item) => <button type="button" key={item.id} onDragOver={(e) => { if (e.dataTransfer.types.includes("application/x-learnins-chat")) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }} onDrop={(e) => { e.preventDefault(); void moveChat(e.dataTransfer.getData("application/x-learnins-chat"), item.id); }} onClick={() => { if (item.id === selected) return; if (dirty && !confirm("Discard unsaved project details?")) return; setDirty(false); setSelected(item.id); }} aria-current={selected === item.id ? "page" : undefined} className={`w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent ${selected === item.id ? "bg-accent font-medium" : "text-muted-foreground"}`}>{item.name}</button>)}</nav>
+			<p className="text-xs leading-5 text-muted-foreground">Drag a session from the sidebar onto a project, or use the session selector inside a project.</p>
+		</div>
+		{project ? <ProjectDetails key={project.id} project={project} study={study} chats={chats} moving={moving} moveChat={moveChat} setDirty={setDirty} onDelete={() => { setDirty(false); setSelected(""); }} /> : <Panel className="p-8"><h2 className="font-semibold">Your projects</h2><p className="mt-2 text-sm text-muted-foreground">Create a project or select one to manage its notes and files.</p></Panel>}
+	</div>;
+}
+
+function ProjectDetails({ project, study, chats, moving, moveChat, onDelete, setDirty }: { project: StudyData["projects"][number]; study: StudyController; chats: ChatListItem[]; moving: boolean; moveChat: (id: string, projectId: string | null) => Promise<void>; onDelete: () => void; setDirty: (value: boolean) => void }) {
+	const router = useRouter();
+	const [name, setName] = useState(project.name);
+	const [notes, setNotes] = useState(project.notes);
+	const [uploading, setUploading] = useState(false);
+	const [expanded, setExpanded] = useState("");
+	const input = useRef<HTMLInputElement>(null);
+	const update = (change: (current: typeof project) => typeof project) => study.save((data) => ({ ...data, projects: data.projects.map((item) => item.id === project.id ? change(item) : item) }));
+	async function upload(files: FileList | null) {
+		if (!files?.length) return;
+		setUploading(true);
+		try {
+			for (const file of Array.from(files)) {
+				const result = await study.updateMaterial("POST", file);
+				if (!result) break;
+				const added = result.materials.at(-1);
+				if (added && !await update((item) => ({ ...item, materialIds: [...item.materialIds, added.id] }))) break;
+			}
+		} finally { setUploading(false); if (input.current) input.current.value = ""; }
+	}
+	const materials = study.data!.materials;
+	return <div className="space-y-6"><Panel className="space-y-4 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Sessions</h2><p className="mt-1 text-sm text-muted-foreground">Organize teaching and practice sessions in this project.</p></div><div className="flex gap-2"><button type="button" className={button} onClick={() => router.push(`/chat/new?project=${encodeURIComponent(project.id)}`)}>New teaching</button><button type="button" className={button} onClick={() => router.push(`/chat/new?mode=practice&project=${encodeURIComponent(project.id)}`)}>New practice</button></div></div>
+		{chats.filter((c) => c.projectId === project.id).length === 0 ? <p className="text-sm text-muted-foreground">No sessions in this project yet.</p> : <ul className="space-y-2">{chats.filter((c) => c.projectId === project.id).map((chat) => <li key={chat.id} className="flex items-center gap-2 rounded-md border border-border p-3"><button type="button" className="min-w-0 flex-1 truncate text-left text-sm hover:underline" onClick={() => router.push(`/chat/${chat.id}`)}>{chat.title}</button><button type="button" className={button} disabled={moving} onClick={() => void moveChat(chat.id, null)}>Remove</button></li>)}</ul>}
+		{chats.some((c) => c.projectId !== project.id) && <label className="block text-sm font-medium">Add an existing session<select className={`mt-2 ${field}`} value="" disabled={moving} onChange={(e) => { if (e.target.value) void moveChat(e.target.value, project.id); }}><option value="">Choose a session…</option>{chats.filter((c) => c.projectId !== project.id).map((chat) => <option key={chat.id} value={chat.id}>{chat.title}</option>)}</select></label>}
+	</Panel><Panel className="space-y-4 p-5"><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (name.trim()) void update((item) => ({ ...item, name: name.trim(), notes })).then((ok) => { if (ok) setDirty(false); }); }}>
+		<label className="block text-sm font-medium">Project name<input className={`mt-2 ${field}`} value={name} maxLength={200} required disabled={study.busy} onChange={(e) => { setName(e.target.value); setDirty(true); }} /></label>
+		<label className="block text-sm font-medium">Notes<textarea className={`mt-2 min-h-40 ${field}`} value={notes} maxLength={100000} disabled={study.busy} onChange={(e) => { setNotes(e.target.value); setDirty(true); }} placeholder="Add information about this project…" /></label>
+		<div className="flex flex-wrap gap-2"><button className={primary} disabled={study.busy || !name.trim()}>Save details</button><button type="button" className={button} disabled={study.busy} onClick={() => { if (confirm(`Delete project “${project.name}”? Its sessions and files will remain available.`)) void study.save((data) => ({ ...data, projects: data.projects.filter((item) => item.id !== project.id) })).then((ok) => { if (ok) onDelete(); }); }}>Delete project</button></div>
+	</form></Panel>
+	<Panel className="space-y-4 p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Files</h2><p className="mt-1 text-sm text-muted-foreground">Upload files or attach items from Materials. Files stay in your local library.</p></div><input ref={input} type="file" multiple className="sr-only" onChange={(e) => void upload(e.target.files)} /><button type="button" className={button} disabled={study.busy || uploading} onClick={() => input.current?.click()}><UploadIcon className="size-4" />{uploading ? "Uploading…" : "Upload files"}</button></div>
+		<p className="text-xs text-muted-foreground">PDF, Word, PowerPoint, images, text, Markdown, CSV, code and VTT/SRT; up to 20 MB per file.</p>
+		{project.materialIds.length === 0 && <p className="text-sm text-muted-foreground">No files attached yet.</p>}
+		<ul className="space-y-2">{project.materialIds.map((id) => { const material = materials.find((item) => item.id === id); return <li key={id} className="rounded-md border border-border p-3"><div className="flex flex-wrap items-center gap-2"><span className="min-w-0 flex-1 break-all text-sm">{material?.name ?? "File removed from Materials"}</span>{material && <><button type="button" className={button} onClick={() => setExpanded(expanded === id ? "" : id)}>{expanded === id ? "Hide text" : "View text"}</button>{material.originalExtension && <a className={button} href={`/api/study/materials/download?id=${encodeURIComponent(id)}`}>Download</a>}</>}<button type="button" className={button} disabled={study.busy} onClick={() => void update((item) => ({ ...item, materialIds: item.materialIds.filter((value) => value !== id) }))}>Detach</button></div>{material && expanded === id && <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm text-muted-foreground">{material.text || "No text was extracted from this file."}</pre>}</li>; })}</ul>
+		{materials.some((item) => !project.materialIds.includes(item.id)) && <label className="block text-sm font-medium">Attach an existing file<select className={`mt-2 ${field}`} value="" disabled={study.busy} onChange={(e) => { const id = e.target.value; if (id) void update((item) => ({ ...item, materialIds: [...item.materialIds, id] })); }}><option value="">Choose a file…</option>{materials.filter((item) => !project.materialIds.includes(item.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+	</Panel></div>;
 }
 
 function Flashcards({ study }: { study: StudyController }) {

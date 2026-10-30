@@ -18,6 +18,9 @@ export async function PUT(request: Request) {
 		if (value && typeof value === "object" && !Array.isArray(value) && !("materials" in value)) {
 			(value as Record<string, unknown>).materials = readStudy().materials;
 		}
+		if (value && typeof value === "object" && !Array.isArray(value) && !("projects" in value)) {
+			(value as Record<string, unknown>).projects = readStudy().projects;
+		}
 		const saved = writeStudy(value);
 		if (!saved) return Response.json({ error: "Study data changed in another window. Reload and try again." }, { status: 409 });
 		return Response.json(saved);

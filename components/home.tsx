@@ -14,6 +14,7 @@ import { SidebarToggle } from "@/components/sidebar";
 import { StatsBar } from "@/components/stats-bar";
 import { OPENING_PROMPT_FAILURE } from "@/components/opening-prompt";
 import { SessionStarter } from "@/components/start-session";
+import { ProjectPicker } from "@/components/project-picker";
 import type { TurnUsage } from "@/src/core";
 
 /**
@@ -34,6 +35,9 @@ export function Home({
 }) {
 	const router = useRouter();
 	const [topic, setTopic] = useState("");
+	const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+	const [projectId, setProjectId] = useState("");
+	useEffect(() => { void fetch("/api/study/projects").then((r) => r.ok ? r.json() : []).then(setProjects).catch(() => {}); }, []);
 	/* The topic MIRROR ("nothing gets lost" round, 2026-10-01 — same
 	 * mechanics as the chat composer, owner's consistency ruling): a
 	 * dictation flush lands via setState, invisible to a closure that
@@ -144,6 +148,7 @@ export function Home({
 			// chains among them); the prompt stays the learner's own words.
 			const target = await starterRef.current.start({
 				title: t,
+				...(projectId ? { projectId } : {}),
 				...(mode === "practice" ? { kind: "practice" } : {}),
 				...(practiceProps.length > 0 ? { graphContext: { propositions: practiceProps } } : {}),
 			}, fetch, JSON.stringify(catalog?.slots.strong));
@@ -210,6 +215,7 @@ export function Home({
 			    px-4) so nothing shifts when a session starts (owner). */}
 			<div className="pointer-events-none absolute inset-x-0 bottom-0 pb-5">
 				<div className="pointer-events-auto mx-auto w-full max-w-[46rem] px-4">
+					{projects.length > 0 && <div className="mb-3"><ProjectPicker projects={projects} value={projectId} onChange={setProjectId} disabled={busy} /></div>}
 					{/* The pick bar (owner vision, 2026-10-04): the chain
 					    table's selection is PERSISTENT — picked
 					    propositions show here as a count + Clear in EITHER

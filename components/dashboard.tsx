@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, BookOpenIcon, CalendarDaysIcon, Code2Icon, FileTextIcon, HelpCircleIcon, Layers3Icon, PlusIcon } from "lucide-react";
 import { SidebarToggle } from "@/components/sidebar";
+import { ProjectPicker } from "@/components/project-picker";
 const SetupDialog = dynamic(() => import("@/components/setup-dialog").then((module) => module.SetupDialog));
 import { useModelSetup } from "@/components/setup-cta";
 const FirstLaunchTutorial = dynamic(() => import("@/components/first-launch-tutorial").then((module) => module.FirstLaunchTutorial));
@@ -18,6 +19,7 @@ export function Dashboard({ initialConfigured, initialTutorialCompleted = false 
 	const [tutorialOpen, setTutorialOpen] = useState(!initialTutorialCompleted);
 	const [topic, setTopic] = useState("");
 	const [mode, setMode] = useState<"teach" | "practice">("teach");
+	const [projectId, setProjectId] = useState("");
 	const [study, setStudy] = useState<StudyData | null>(null);
 	const [sessions, setSessions] = useState<ChatListItem[] | null>(null);
 	const [sessionError, setSessionError] = useState(false);
@@ -38,7 +40,10 @@ export function Dashboard({ initialConfigured, initialTutorialCompleted = false 
 	function start() {
 		const draft = topic.trim();
 		if (draft) sessionStorage.setItem("learnins:starter", draft);
-		router.push(mode === "practice" ? "/chat/new?mode=practice" : "/chat/new");
+		const params = new URLSearchParams();
+		if (mode === "practice") params.set("mode", "practice");
+		if (projectId) params.set("project", projectId);
+		router.push(`/chat/new${params.size ? `?${params}` : ""}`);
 	}
 	return <div data-native-tab className="flex h-dvh min-w-0 flex-col bg-background">
 		<header className="lh-drag lh-wco-gutter flex h-14 shrink-0 items-center gap-3 border-b border-border px-4"><SidebarToggle /><span className="text-sm font-medium">Home</span></header>
@@ -57,6 +62,7 @@ export function Dashboard({ initialConfigured, initialTutorialCompleted = false 
 					<div className="flex gap-1 rounded-md bg-background p-1">
 						{(["teach", "practice"] as const).map((item) => <button key={item} type="button" aria-pressed={mode === item} onClick={() => setMode(item)} className={`rounded px-3 py-1.5 text-sm ${mode === item ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{item === "teach" ? "Teaching" : "Practice"}</button>)}
 					</div>
+					{(study?.projects.length ?? 0) > 0 && <ProjectPicker projects={study!.projects} value={projectId} onChange={setProjectId} />}
 					<button type="submit" className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">Start a session <ArrowRightIcon className="size-4" /></button>
 				</div>
 			</form>
