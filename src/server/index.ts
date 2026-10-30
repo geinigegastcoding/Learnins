@@ -40,6 +40,7 @@ export * from "./codex-connection.ts";
 export * from "./calendar-response.ts";
 export * from "./local-mutation.ts";
 export * from "./materials.ts";
+export { setChatProject } from "../store/chats.ts";
 export { authStore } from "../store/auth.ts";
 export * from "./settings-body.ts";
 export * from "./turn-liveness.ts";

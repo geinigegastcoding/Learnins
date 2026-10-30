@@ -300,6 +300,8 @@ export function SessionRow({
 	return (
 		<button
 			type="button"
+			draggable
+			onDragStart={(event) => { event.dataTransfer.setData("application/x-learnins-chat", chat.id); event.dataTransfer.effectAllowed = "move"; }}
 			onClick={onOpen}
 			onContextMenu={onContextMenu}
 			data-testid={kbdSelected ? "session-row-kbd" : "session-row"}
@@ -718,6 +720,7 @@ function SessionsSidebar() {
 				<nav aria-label="Study tools" className="mx-3 mb-4 flex flex-col gap-1">
 					{[
 						{ href: "/graph", label: "Knowledge graph", icon: BookOpenIcon },
+						{ href: "/study/projects", label: "Projects", icon: BookOpenIcon },
 						{ href: "/study/materials", label: "Materials", icon: FolderOpenIcon },
 						{ href: "/study/flashcards", label: "Flashcards", icon: Layers3Icon },
 						{ href: "/study/planner", label: "Planner", icon: CalendarDaysIcon },

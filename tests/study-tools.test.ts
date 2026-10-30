@@ -93,7 +93,9 @@ test("free search returns result links and falls back to an encyclopedia when ch
 test("local study writes reject stale revisions and preserve corrupt files", async () => {
 	const { readStudy, writeStudy } = await import("../src/server/study.ts");
 	const { addStudyMaterial, deleteStudyMaterial, studyMaterialPaths } = await import("../src/server/materials.ts");
+	fs.writeFileSync(path.join(dataDir, "study.json"), JSON.stringify({ version: 1, revision: 0, decks: [], exams: [], materials: [] }));
 	const initial = readStudy();
+	assert.deepEqual(initial.projects, []);
 	const added = await addStudyMaterial(new File(["Original course notes"], "lesson.txt"), initial.revision);
 	assert.equal(added?.revision, 1);
 	const material = added!.materials[0]!;
@@ -103,7 +105,14 @@ test("local study writes reject stale revisions and preserve corrupt files", asy
 	assert.equal(writeStudy(initial), null);
 	assert.equal(await addStudyMaterial(new File(["Stale upload"], "stale.txt"), initial.revision), null);
 	assert.equal(fs.readdirSync(path.join(dataDir, "materials")).length, 2);
-	assert.equal(deleteStudyMaterial(material.id, 1)?.cleanupFailed, false);
+	const withProject = writeStudy({ ...added!, projects: [{ id: "project", name: "Study", notes: "Details", materialIds: [material.id] }] });
+	assert.equal(withProject?.revision, 2);
+	assert.deepEqual(readStudy().projects[0]?.materialIds, [material.id]);
+	assert.equal(writeStudy(added), null);
+	const withoutProject = writeStudy({ ...withProject!, projects: [] });
+	assert.equal(withoutProject?.revision, 3);
+	assert.equal(fs.readFileSync(paths.original, "utf8"), "Original course notes");
+	assert.equal(deleteStudyMaterial(material.id, 3)?.cleanupFailed, false);
 	assert.equal(fs.readdirSync(path.join(dataDir, "materials")).length, 0);
 	fs.writeFileSync(path.join(dataDir, "study.json"), "{broken");
 	assert.throws(() => writeStudy(initial));

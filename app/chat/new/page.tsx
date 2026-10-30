@@ -1,5 +1,5 @@
 import { NewSession } from "@/components/new-session";
-import { readSettingsRecord } from "@/src/server";
+import { readSettingsRecord, readStudy } from "@/src/server";
 import { slotsConfigured } from "@/src/core";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +18,17 @@ export const dynamic = "force-dynamic";
 export default async function NewSessionPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ mode?: string }>;
+	searchParams: Promise<{ mode?: string; project?: string }>;
 }) {
-	const { mode } = await searchParams;
+	const { mode, project } = await searchParams;
+	let projects: { id: string; name: string }[] = [];
+	try { projects = readStudy().projects.map(({ id, name }) => ({ id, name })); } catch { /* Study data errors must not block starting an unrelated session. */ }
 	return (
 		<NewSession
 			initialConfigured={slotsConfigured(readSettingsRecord()?.models)}
 			mode={mode === "practice" ? "practice" : "teach"}
+			projects={projects}
+			initialProject={project}
 		/>
 	);
 }

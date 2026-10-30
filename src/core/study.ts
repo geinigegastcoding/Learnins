@@ -46,9 +46,12 @@ export interface StudyData {
 	decks: StudyDeck[];
 	exams: StudyExam[];
 	materials: StudyMaterial[];
+	projects: StudyProject[];
 }
 
-export const emptyStudyData = (): StudyData => ({ version: 1, revision: 0, decks: [], exams: [], materials: [] });
+export interface StudyProject { id: string; name: string; notes: string; materialIds: string[] }
+
+export const emptyStudyData = (): StudyData => ({ version: 1, revision: 0, decks: [], exams: [], materials: [], projects: [] });
 
 /** A failed recall returns shortly; successful reviews grow the interval. */
 export function reviewCard(card: StudyCard, rating: Rating, now = new Date()): StudyCard {

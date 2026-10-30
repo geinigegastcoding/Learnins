@@ -22,6 +22,7 @@ const schema = z.object({
 		topics: z.array(text).max(200), events: z.array(event).max(500),
 	}).strict()).max(200),
 	materials: z.array(z.object({ id, name: text, text: z.string().max(1_000_000), createdAt: instant, originalExtension: z.string().regex(/^\.[a-z0-9]{1,10}$/).optional() }).strict()).max(200),
+	projects: z.array(z.object({ id, name: text, notes: z.string().max(100_000), materialIds: z.array(id).max(200) }).strict()).max(200).default([]),
 }).strict();
 
 const studyFile = path.join(PATHS.data, "study.json");

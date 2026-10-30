@@ -19,7 +19,7 @@ import { after, describe, it } from "node:test";
 const TMP_DATA = fs.mkdtempSync(path.join(os.tmpdir(), "lh-chat-kind-"));
 process.env.LH_DATA_DIR = TMP_DATA;
 
-const { chatStore } = await import("../src/store/chats.ts");
+const { chatStore, setChatProject } = await import("../src/store/chats.ts");
 
 after(() => {
 	fs.rmSync(TMP_DATA, { recursive: true, force: true });
@@ -42,5 +42,17 @@ describe("session kind (practice sessions, 2026-10-04)", () => {
 		const chat = chatStore.createChat("another plain one");
 		const listed = chatStore.listChats().find((c) => c.id === chat.id);
 		assert.equal(listed?.kind, "teach");
+	});
+
+	it("creates, moves and removes project membership without changing the session", () => {
+		const chat = chatStore.createChat("Project session", "practice", "project-a");
+		assert.equal(chatStore.listChats().find((item) => item.id === chat.id)?.projectId, "project-a");
+		assert.equal(setChatProject(chat.id, "project-b"), true);
+		assert.equal(chatStore.getChat(chat.id)?.projectId, "project-b");
+		assert.equal(chatStore.getChat(chat.id)?.updatedAt, chat.updatedAt);
+		assert.equal(setChatProject(chat.id, null), true);
+		assert.equal(chatStore.getChat(chat.id)?.projectId, undefined);
+		assert.equal(chatStore.getChat(chat.id)?.kind, "practice");
+		assert.equal(setChatProject("missing", "project-a"), false);
 	});
 });

@@ -29,6 +29,7 @@ export type ChatKind = "teach" | "practice";
 
 export interface ChatRecord {
 	id: string;
+	projectId?: string;
 	title: string;
 	createdAt: string;
 	updatedAt: string;
@@ -258,6 +259,7 @@ export interface PlanBlockData {
  */
 export interface ChatSummary {
 	id: string;
+	projectId?: string;
 	title: string;
 	createdAt: string;
 	updatedAt: string;

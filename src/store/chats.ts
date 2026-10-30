@@ -32,7 +32,7 @@ function chatFile(id: string): string {
  *  phase, busy, pendingQuestion) is already announced by turn-started /
  *  turn-settled, which the sidebar refetches on. Silence here is law,
  *  not oversight. */
-function createChat(title: string, kind?: "practice"): ChatRecord {
+function createChat(title: string, kind?: "practice", projectId?: string): ChatRecord {
 	const now = new Date().toISOString();
 	const record: ChatRecord = {
 		id: `chat_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`,
@@ -40,6 +40,7 @@ function createChat(title: string, kind?: "practice"): ChatRecord {
 		createdAt: now,
 		updatedAt: now,
 		messages: [],
+		...(projectId ? { projectId } : {}),
 		// Practice sessions carry the marker; teach stays ABSENT (absence
 		// reads as teach — pre-practice records never migrate).
 		...(kind === "practice" ? { kind: "practice" as const } : {}),
@@ -48,6 +49,16 @@ function createChat(title: string, kind?: "practice"): ChatRecord {
 	writeChat(record);
 	emit("chats-changed", {});
 	return { ...record, version: CURRENT_CHAT_VERSION }; // the in-memory twin of what landed on disk
+}
+
+export function setChatProject(id: string, projectId: string | null): boolean {
+	const record = getChat(id);
+	if (!record) return false;
+	if (projectId) record.projectId = projectId;
+	else delete record.projectId;
+	writeChat(record);
+	emit("chats-changed", {});
+	return true;
 }
 
 /** THE WRITE CHOKE POINT (schema-versioning wave, owner 2026-10-10): every

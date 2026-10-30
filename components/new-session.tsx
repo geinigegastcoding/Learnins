@@ -15,6 +15,7 @@ import { ChainTableOverlay } from "@/components/chain-table.tsx";
 import { ComposerActions, NodePickerControl } from "@/components/composer-actions";
 import { OPENING_PROMPT_FAILURE } from "@/components/opening-prompt";
 import { SessionStarter } from "@/components/start-session";
+import { ProjectPicker } from "@/components/project-picker";
 import type { ChatSettings, GraphSnapshot } from "@/src/core";
 
 /** The draft's pick set (owner round 10): the SAME shape the home pick
@@ -48,6 +49,7 @@ export async function startDraftSession(
 	picks?: readonly DraftPick[],
 	starter = new SessionStarter(),
 	settingsIdentity?: string,
+	projectId?: string,
 ): Promise<string | null> {
 	const t = text.trim();
 	if (!t) return null;
@@ -57,8 +59,8 @@ export async function startDraftSession(
 	// [id] name: statement lines, target validation's truth set).
 	return starter.start(
 		mode === "practice"
-			? { title: t, kind: "practice", ...(picks && picks.length > 0 ? { graphContext: { propositions: picks } } : {}) }
-			: { title: t },
+			? { title: t, kind: "practice", ...(projectId ? { projectId } : {}), ...(picks && picks.length > 0 ? { graphContext: { propositions: picks } } : {}) }
+			: { title: t, ...(projectId ? { projectId } : {}) },
 		fetchLike,
 		settingsIdentity,
 	);
@@ -81,6 +83,7 @@ export function DraftShell({
 	onOpenPicker,
 	onClearPicks,
 	overlay,
+	projectPicker,
 }: {
 	busy: boolean;
 	text: string;
@@ -108,6 +111,7 @@ export function DraftShell({
 	 *  the graph view (the overlay fills its column, never the sidebar).
 	 *  Passed as a node so the pick state stays in NewSession. */
 	overlay?: ReactNode;
+	projectPicker?: ReactNode;
 }) {
 	// Voice dictation (STT wave, 2026-09-17): finals append at the end of the
 	// draft text (via the parent's onChange — the truth lives there); the
@@ -189,6 +193,7 @@ export function DraftShell({
 						<div className="h-24 bg-gradient-to-t from-background via-background/85 to-transparent" />
 						<div className="bg-background pb-4">
 							<div className={DOCK}>
+								{projectPicker}
 								<ComposerActions
 									picker={(picks.length > 0 || mode === "practice") && (
 										<NodePickerControl count={picks.length} onOpen={onOpenPicker} onClear={onClearPicks} />
@@ -236,8 +241,9 @@ export function DraftShell({
 	);
 }
 
-export function NewSession({ initialConfigured, mode = "teach" }: { initialConfigured: boolean; mode?: "teach" | "practice" }) {
+export function NewSession({ initialConfigured, mode = "teach", projects = [], initialProject }: { initialConfigured: boolean; mode?: "teach" | "practice"; projects?: { id: string; name: string }[]; initialProject?: string }) {
 	const router = useRouter();
+	const [projectId, setProjectId] = useState(projects.some((p) => p.id === initialProject) ? initialProject! : "");
 	const [text, setText] = useState("");
 	/* The draft MIRROR ("nothing gets lost" round, 2026-10-01): the shell's
 	 * finish-first send calls THIS send after the dictation flush — which
@@ -320,7 +326,7 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 		setBusy(true);
 		setStartError(false);
 		void startDraftSession(draft, fetch, mode === "practice" ? "practice" : undefined, mode === "practice" ? picksRef.current : undefined,
-			starterRef.current, JSON.stringify(catalog?.slots.strong))
+			starterRef.current, JSON.stringify(catalog?.slots.strong), projectId || undefined)
 			.then((target) => {
 				if (target) router.push(target);
 				else { startingRef.current = false; setBusy(false); }
@@ -330,11 +336,12 @@ export function NewSession({ initialConfigured, mode = "teach" }: { initialConfi
 				setBusy(false);
 				setStartError(true);
 			});
-	}, [router, configured, zeroKeys, catalog, mode]);
+	}, [router, configured, zeroKeys, catalog, mode, projectId]);
 
 	return (
 		<>
 			<DraftShell
+				projectPicker={projects.length > 0 && <div className="mb-3"><ProjectPicker projects={projects} value={projectId} onChange={setProjectId} disabled={busy} /></div>}
 				busy={busy}
 				startError={startError}
 				text={text}
