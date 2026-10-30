@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, BookOpenIcon, CalendarDaysIcon, Code2Icon, FileTextIcon, HelpCircleIcon, Layers3Icon, PlusIcon } from "lucide-react";
 import { SidebarToggle } from "@/components/sidebar";
-import { SetupDialog } from "@/components/setup-dialog";
+const SetupDialog = dynamic(() => import("@/components/setup-dialog").then((module) => module.SetupDialog));
 import { useModelSetup } from "@/components/setup-cta";
-import { FirstLaunchTutorial } from "@/components/first-launch-tutorial";
+const FirstLaunchTutorial = dynamic(() => import("@/components/first-launch-tutorial").then((module) => module.FirstLaunchTutorial));
 import type { ChatListItem, StudyData } from "@/src/core";
 
 export function Dashboard({ initialConfigured, initialTutorialCompleted = false }: { initialConfigured: boolean; initialTutorialCompleted?: boolean }) {
@@ -72,7 +73,7 @@ export function Dashboard({ initialConfigured, initialTutorialCompleted = false 
 				</section>
 			</div>
 		</div></main>
-		<SetupDialog open={setupOpen} onClose={() => setSetupOpen(false)} onDone={() => setSetupOpen(false)} />
+		{setupOpen && <SetupDialog open onClose={() => setSetupOpen(false)} onDone={() => setSetupOpen(false)} />}
 		{tutorialOpen && <FirstLaunchTutorial configured={configured} onClose={(connect) => { setTutorialOpen(false); if (connect) setSetupOpen(true); }} />}
 	</div>;
 }
